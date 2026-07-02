@@ -22,6 +22,7 @@ workflows:
       - name: Install CocoaPods
         script: |
           cd ios/App
+          ls -la
           pod install
       - name: Build iOS
         script: |
