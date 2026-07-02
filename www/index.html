@@ -101,6 +101,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .sheets-status.err{color:#dc2626;}
 .info-box{background:var(--blue-light);border-left:3px solid var(--blue);border-radius:0 6px 6px 0;padding:8px 10px;font-size:11px;color:var(--text-mid);line-height:1.6;margin-top:8px;}
 .main{flex:1;padding:16px;overflow-y:auto;min-width:0;}
+body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
 .filters{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
 .filter-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 
@@ -265,7 +266,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 }
 
 /* ── Training tab ─────────────────────────────────────────────────── */
-.tab-bar{display:flex;gap:4px;border-bottom:2px solid var(--g200);margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
+.tab-bar{display:flex;gap:4px;border-bottom:2px solid var(--g200);margin-bottom:16px;overflow-x:auto;padding-top:env(safe-area-inset-top);-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
 .tab-bar::-webkit-scrollbar{display:none;}
 .tab-btn{flex:0 0 auto;padding:12px 16px;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;color:var(--g400);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:6px;border-radius:8px 8px 0 0;-webkit-tap-highlight-color:transparent;}
 .tab-btn:hover{color:var(--navy);background:var(--g50);}
@@ -1480,7 +1481,9 @@ let cups=[];
 let exerciseArchive=[];
 let exerciseFolders=[];
 // ── Server endpoints ─────────────────────────────────────────────────────────
-const BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+const BASE_URL = (window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost')
+    ? 'https://fcspigetalent.synology.me/fcs/'
+    : window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
 const AUTH_URL  = BASE_URL + 'auth.php';
 const LOAD_URL  = BASE_URL + 'load.php';
 const SAVE_URL  = BASE_URL + 'save.php';
