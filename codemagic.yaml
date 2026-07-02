@@ -22,6 +22,14 @@ workflows:
       - name: Capacitor sync
         script: |
           npx cap sync ios
+      - name: Debug - find Podfile
+        script: |
+          echo "=== Contents of ios ==="
+          ls -la ios/
+          echo "=== Contents of ios/App ==="
+          ls -la ios/App/
+          echo "=== Find all Podfiles ==="
+          find . -name "Podfile" -not -path "*/node_modules/*"
       - name: Install CocoaPods
         script: |
           cd ios/App
