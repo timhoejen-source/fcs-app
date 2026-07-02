@@ -21,8 +21,8 @@ workflows:
           npx cap sync ios
       - name: Install CocoaPods
         script: |
-          cd ios/App
-          ls -la
+          find . -name "Podfile" -not -path "*/node_modules/*"
+          cd ios/App/App
           pod install
       - name: Build iOS
         script: |
