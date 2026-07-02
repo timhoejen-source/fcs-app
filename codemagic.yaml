@@ -15,14 +15,16 @@ workflows:
       - name: Install dependencies
         script: |
           npm install
-          npm install -g @capacitor/cli
+          npm install -g @capacitor/cli @capacitor/ios
+      - name: Add iOS platform
+        script: |
+          npx cap add ios
       - name: Capacitor sync
         script: |
           npx cap sync ios
       - name: Install CocoaPods
         script: |
-          find . -name "Podfile" -not -path "*/node_modules/*"
-          cd ios/App/App
+          cd ios/App
           pod install
       - name: Build iOS
         script: |
