@@ -21,6 +21,10 @@ workflows:
       - name: Capacitor sync
         script: |
           npx cap sync ios
+      - name: Set build number
+        script: |
+          BUILD_NUMBER=$(($(app-store-connect get-latest-build-number "dk.fcskanderborg.spillerstyring") + 1))
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
       - name: Build iOS
         script: |
           xcode-project use-profiles
