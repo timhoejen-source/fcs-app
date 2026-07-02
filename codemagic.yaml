@@ -13,9 +13,12 @@ workflows:
       cocoapods: default
     scripts:
       - name: Install dependencies
-        script: npm install
+        script: |
+          npm install
+          npm install -g @capacitor/cli
       - name: Capacitor sync
-        script: npx cap sync ios
+        script: |
+          npx cap sync ios
       - name: Install CocoaPods
         script: |
           cd ios/App
