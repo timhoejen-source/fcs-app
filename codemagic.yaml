@@ -10,7 +10,6 @@ workflows:
         bundle_identifier: dk.fcskanderborg.spillerstyring
       node: 22.0.0
       xcode: latest
-      cocoapods: default
     scripts:
       - name: Install dependencies
         script: |
@@ -22,18 +21,6 @@ workflows:
       - name: Capacitor sync
         script: |
           npx cap sync ios
-      - name: Debug - find Podfile
-        script: |
-          echo "=== Contents of ios ==="
-          ls -la ios/
-          echo "=== Contents of ios/App ==="
-          ls -la ios/App/
-          echo "=== Find all Podfiles ==="
-          find . -name "Podfile" -not -path "*/node_modules/*"
-      - name: Install CocoaPods
-        script: |
-          cd ios/App
-          pod install
       - name: Build iOS
         script: |
           xcode-project use-profiles
