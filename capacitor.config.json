@@ -1,5 +1,13 @@
 {
   "appId": "dk.fcskanderborg.spillerstyring",
   "appName": "FC Skanderborg",
-  "webDir": "www"
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "allowsLinkPreview": false,
+    "scrollEnabled": true,
+    "limitsNavigationsToAppBoundDomains": false
+  }
 }
