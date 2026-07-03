@@ -6023,28 +6023,35 @@ function klubSetupApply(){
   try{
     var raw = localStorage.getItem('fcs-klub-settings');
     if(raw){
+      // Kendt klub — anvend branding og vis login
       klubBrandingApply(JSON.parse(raw));
     } else if(isCapacitorApp()){
-      // Første gang i iOS-app — vis opsætning
-      klubSetupOpen();
+      // Første gang i iOS-app — skjul login og vis klub-opsætning
+      var loginOverlay = document.getElementById('loginOverlay');
+      if(loginOverlay) loginOverlay.style.display = 'none';
+      klubSetupOpen(true); // true = første gang
     }
   }catch(e){}
 }
 
-function klubSetupOpen(){
+function klubSetupOpen(foerstgang){
   var overlay = document.getElementById('klubSetupOverlay');
   if(!overlay) return;
-  // Indlæs gemte værdier
+  overlay.dataset.foerstgang = foerstgang ? '1' : '';
+  var cancelBtn = document.getElementById('klub-setup-cancel-btn');
+  if(cancelBtn) cancelBtn.style.display = foerstgang ? 'none' : '';
+  var gemBtn = document.getElementById('klub-setup-gem-btn');
+  if(gemBtn) gemBtn.textContent = foerstgang ? '⚽ Kom i gang' : '💾 Gem klubopsætning';
   try{
     var raw = localStorage.getItem('fcs-klub-settings');
-    if(raw){
+    if(raw && !foerstgang){
       var s = JSON.parse(raw);
       document.getElementById('klub-setup-navn').value = s.navn || '';
       document.getElementById('klub-setup-sub').value  = s.sub  || '';
-      document.getElementById('klub-setup-primary').value    = s.primary   || '#4B5563';
-      document.getElementById('klub-setup-primary-hex').value = s.primary  || '#4B5563';
-      document.getElementById('klub-setup-secondary').value  = s.secondary || '#9CA3AF';
-      document.getElementById('klub-setup-secondary-hex').value = s.secondary || '#9CA3AF';
+      document.getElementById('klub-setup-primary').value      = s.primary   || '#4B5563';
+      document.getElementById('klub-setup-primary-hex').value  = s.primary   || '#4B5563';
+      document.getElementById('klub-setup-secondary').value    = s.secondary || '#9CA3AF';
+      document.getElementById('klub-setup-secondary-hex').value= s.secondary || '#9CA3AF';
       if(s.logo){ _klubLogoDataUrl = s.logo; document.getElementById('klub-setup-logo-label').textContent = '✅ Logo valgt'; }
     }
   }catch(e){}
@@ -6052,61 +6059,13 @@ function klubSetupOpen(){
   klubSetupPreview();
 }
 
-function klubSetupPreview(){
-  var navn = document.getElementById('klub-setup-navn').value || 'Min Klub';
-  var primary = document.getElementById('klub-setup-primary').value || '#4B5563';
-  var hdr = document.getElementById('klub-setup-hdr');
-  var nameP = document.getElementById('klub-setup-name-preview');
-  var logoP = document.getElementById('klub-setup-logo-preview');
-  if(hdr) hdr.style.background = primary;
-  if(nameP) nameP.textContent = navn;
-  if(logoP){
-    if(_klubLogoDataUrl){
-      logoP.innerHTML = '<img src="'+_klubLogoDataUrl+'" style="width:100%;height:100%;object-fit:cover;">';
-    } else {
-      var initials = navn.split(' ').map(function(w){return w[0];}).join('').substring(0,3).toUpperCase();
-      logoP.innerHTML = initials || '⚽';
-    }
-  }
-  var gemBtn = document.getElementById('klub-setup-gem-btn');
-  if(gemBtn) gemBtn.style.background = primary;
-  // Sync hex felt
-  document.getElementById('klub-setup-primary-hex').value   = primary;
-  document.getElementById('klub-setup-secondary-hex').value = document.getElementById('klub-setup-secondary').value;
-}
-
-function klubSetupHexInput(val, type){
-  if(/^#[0-9A-Fa-f]{6}$/.test(val)){
-    document.getElementById('klub-setup-'+type).value = val;
-    klubSetupPreview();
-  }
-}
-
-function klubSetupLogoValgt(input){
-  var file = input.files[0];
-  if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e){
-    var img = new Image();
-    img.onload = function(){
-      var canvas = document.createElement('canvas');
-      var max = 400;
-      var scale = Math.min(max/img.width, max/img.height, 1);
-      canvas.width  = Math.round(img.width*scale);
-      canvas.height = Math.round(img.height*scale);
-      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      _klubLogoDataUrl = canvas.toDataURL('image/png');
-      document.getElementById('klub-setup-logo-label').textContent = '✅ Logo valgt';
-      klubSetupPreview();
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
 function klubSetupGem(){
+  var overlay = document.getElementById('klubSetupOverlay');
+  var foerstgang = overlay && overlay.dataset.foerstgang === '1';
+  var navn = document.getElementById('klub-setup-navn').value.trim();
+  if(!navn){ toast('⚠️ Skriv venligst et klubnavn'); return; }
   var settings = {
-    navn:      document.getElementById('klub-setup-navn').value     || 'Min Klub',
+    navn:      navn,
     sub:       document.getElementById('klub-setup-sub').value      || 'Spillerstyring',
     primary:   document.getElementById('klub-setup-primary').value  || '#4B5563',
     secondary: document.getElementById('klub-setup-secondary').value|| '#9CA3AF',
@@ -6114,8 +6073,14 @@ function klubSetupGem(){
   };
   try{ localStorage.setItem('fcs-klub-settings', JSON.stringify(settings)); }catch(e){}
   klubBrandingApply(settings);
-  document.getElementById('klubSetupOverlay').style.display = 'none';
-  toast('✅ Klubopsætning gemt');
+  if(overlay) overlay.style.display = 'none';
+  if(foerstgang){
+    var loginOverlay = document.getElementById('loginOverlay');
+    if(loginOverlay) loginOverlay.style.display = 'flex';
+    toast('✅ Velkommen! Log nu ind for at fortsætte');
+  } else {
+    toast('✅ Klubopsætning gemt');
+  }
 }
 
 
@@ -8364,7 +8329,7 @@ function docsDelete(id){
       </label>
 
       <button onclick="klubSetupGem()" id="klub-setup-gem-btn" style="width:100%;padding:14px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">💾 Gem klubopsætning</button>
-      <button onclick="document.getElementById(\'klubSetupOverlay\').style.display=\'none\'" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Annuller</button>
+      <button onclick="document.getElementById(\'klubSetupOverlay\').style.display=\'none\'" id="klub-setup-cancel-btn" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Annuller</button>
     </div>
   </div>
 </div>
