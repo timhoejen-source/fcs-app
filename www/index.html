@@ -7,9 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="FCS Pige Talent">
+<meta name="apple-mobile-web-app-title" content="Q-Fodboldstyring">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230A2342'/><text y='68' x='50' text-anchor='middle' font-size='42' font-family='sans-serif' font-weight='bold' fill='%23F5C400'>FCS</text></svg>">
-<title>FC Skanderborg · Spillerstyring</title>
+<title>Q-Fodboldstyring</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 :root{
@@ -728,8 +728,8 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
   <div class="login-box">
     <div class="login-border" style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--yellow);border-radius:16px 16px 0 0;"></div>
     <div class="login-crest" id="login-crest">FCS</div>
-    <div class="login-title" id="login-title">FC Skanderborg</div>
-    <div class="login-sub" id="login-sub">Pige talent · Spillerstyring</div>
+    <div class="login-title" id="login-title">Min Klub</div>
+    <div class="login-sub" id="login-sub">Spillerstyring</div>
     <div class="login-fg">
       <label>Brugernavn</label>
       <input type="text" id="login-user" placeholder="brugernavn" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
@@ -758,8 +758,8 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
     <button class="menu-btn" id="menuBtn" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
     <div class="hdr-crest" id="hdr-crest-img"><span id="hdr-crest-txt">FCS</span></div>
     <div>
-      <div class="hdr-title" id="hdr-club-name">FC Skanderborg</div>
-      <div class="hdr-sub" id="hdr-club-sub">Spillerstyring · Pige talent</div>
+      <div class="hdr-title" id="hdr-club-name">Min Klub</div>
+      <div class="hdr-sub" id="hdr-club-sub">Spillerstyring</div>
     </div>
   </div>
   <div class="hdr-right">
@@ -6118,22 +6118,22 @@ function klubSetupGem(){
 }
 
 
-// Anvend klub-branding efter DOM er klar — vent på Capacitor
-document.addEventListener('DOMContentLoaded', function(){
-  function applyWhenReady(attempts){
-    attempts = attempts || 0;
-    if(window.Capacitor && window.Capacitor.isNative){
-      try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
-      klubSetupApply();
-    } else if(localStorage.getItem('fcs-is-native') === '1'){
-      klubSetupApply();
-    } else if(attempts < 10){
-      setTimeout(function(){ applyWhenReady(attempts+1); }, 200);
-    }
-    // Hvis ikke Capacitor efter 2 sek — er det webappen, gør intet
+// applyWhenReady kaldes fra startup-IIFE nedenfor
+function applyWhenReady(attempts){
+  attempts = attempts || 0;
+  if(window.Capacitor && window.Capacitor.isNative){
+    try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
+    klubSetupApply();
+  } else if(localStorage.getItem('fcs-is-native') === '1'){
+    klubSetupApply();
+  } else if(attempts < 15){
+    setTimeout(function(){ applyWhenReady(attempts+1); }, 200);
+  } else {
+    // Ikke Capacitor efter 3 sek — vis login for webappen
+    var lo = document.getElementById('loginOverlay');
+    if(lo && lo.style.display === 'none') lo.style.display = 'flex';
   }
-  applyWhenReady();
-});
+}
 
 (function(){
   var savedRole = localStorage.getItem('fcs-auth');
@@ -6147,16 +6147,10 @@ document.addEventListener('DOMContentLoaded', function(){
     applyRole();
     setTimeout(function(){ loadFromServer(); }, 300);
   } else {
-    // Skjul login midlertidigt — applyWhenReady viser det igen hvis ikke Capacitor
+    // Skjul login — applyWhenReady bestemmer hvad der vises
     document.getElementById('loginOverlay').style.display = 'none';
     renderTeams(); renderSelects(); render();
-    // applyWhenReady håndterer hvad der vises (klub-setup eller login)
-    // Fallback: vis login efter 2.5 sek hvis ikke Capacitor
-    setTimeout(function(){
-      if(!isCapacitorApp()){
-        document.getElementById('loginOverlay').style.display = 'flex';
-      }
-    }, 2500);
+    applyWhenReady();
   }
 })();
 

@@ -1,6 +1,6 @@
 {
   "appId": "dk.fcskanderborg.spillerstyring",
-  "appName": "Pigefodbold Spillerstyring",
+  "appName": "Q-Fodboldstyring",
   "webDir": "www",
   "server": {
     "url": "https://fcspigetalent.synology.me/fcs/",
