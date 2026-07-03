@@ -6036,15 +6036,20 @@ function klubSetupApply(){
   try{
     var raw = localStorage.getItem('fcs-klub-settings');
     if(raw){
-      // Kendt klub — anvend branding og vis login
+      // Klub konfigureret — anvend branding og vis login
       klubBrandingApply(JSON.parse(raw));
-    } else if(isCapacitorApp()){
-      // Første gang i iOS-app — skjul login og vis klub-opsætning
+      var loginOverlay = document.getElementById('loginOverlay');
+      if(loginOverlay) loginOverlay.style.display = 'flex';
+    } else {
+      // Første gang — vis klub-opsætning, skjul login
       var loginOverlay = document.getElementById('loginOverlay');
       if(loginOverlay) loginOverlay.style.display = 'none';
-      klubSetupOpen(true); // true = første gang
+      klubSetupOpen(true);
     }
-  }catch(e){}
+  }catch(e){
+    var loginOverlay = document.getElementById('loginOverlay');
+    if(loginOverlay) loginOverlay.style.display = 'flex';
+  }
 }
 
 function klubSetupOpen(foerstgang){
@@ -6140,11 +6145,18 @@ document.addEventListener('DOMContentLoaded', function(){
     var lastTab = localStorage.getItem('fcs-active-tab') || 'spillere';
     try{ switchTab(lastTab); }catch(e){}
     applyRole();
-    // Hent KUN fra server — aldrig fra localStorage
     setTimeout(function(){ loadFromServer(); }, 300);
   } else {
-    document.getElementById('loginOverlay').style.display = 'flex';
+    // Skjul login midlertidigt — applyWhenReady viser det igen hvis ikke Capacitor
+    document.getElementById('loginOverlay').style.display = 'none';
     renderTeams(); renderSelects(); render();
+    // applyWhenReady håndterer hvad der vises (klub-setup eller login)
+    // Fallback: vis login efter 2.5 sek hvis ikke Capacitor
+    setTimeout(function(){
+      if(!isCapacitorApp()){
+        document.getElementById('loginOverlay').style.display = 'flex';
+      }
+    }, 2500);
   }
 })();
 

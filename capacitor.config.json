@@ -10,7 +10,7 @@
     "allowsLinkPreview": false,
     "scrollEnabled": true,
     "limitsNavigationsToAppBoundDomains": false,
-    "backgroundColor": "#0A2342"
+    "backgroundColor": "#4B5563"
   },
   "plugins": {
     "CapacitorCookies": {
