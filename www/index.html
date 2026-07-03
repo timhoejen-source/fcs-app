@@ -742,10 +742,10 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 <div class="hdr">
   <div class="hdr-brand">
     <button class="menu-btn" id="menuBtn" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
-    <div class="hdr-crest">FCS</div>
+    <div class="hdr-crest" id="hdr-crest-img"><span id="hdr-crest-txt">FCS</span></div>
     <div>
-      <div class="hdr-title">FC Skanderborg</div>
-      <div class="hdr-sub">Spillerstyring · Pige talent</div>
+      <div class="hdr-title" id="hdr-club-name">FC Skanderborg</div>
+      <div class="hdr-sub" id="hdr-club-sub">Spillerstyring · Pige talent</div>
     </div>
   </div>
   <div class="hdr-right">
@@ -770,6 +770,11 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 
 <div class="layout">
   <div class="sidebar" id="sidebar">
+
+    <!-- Klub opsætning (kun iOS) -->
+    <div id="sb-klub-setup" style="display:none;padding:12px 16px;border-bottom:1px solid var(--g100);">
+      <button onclick="klubSetupOpen();toggleSidebar();" style="width:100%;padding:10px;background:var(--navy);color:var(--yellow);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">🎨 Tilpas klubdesign</button>
+    </div>
 
     <!-- Brugerstyring (kun admin) -->
     <div class="sb-section" id="sb-users" style="display:none;">
@@ -1729,6 +1734,10 @@ function applyRole(){
   if(sbLog) sbLog.style.display = isAdmin ? 'block' : 'none';
   var sbDbu=document.getElementById('sb-dbu');
   if(sbDbu) sbDbu.style.display=isAdmin?'block':'none';
+
+  // Klub opsætning — kun i iOS Capacitor app
+  var sbKlubSetup = document.getElementById('sb-klub-setup');
+  if(sbKlubSetup) sbKlubSetup.style.display = isCapacitorApp() ? '' : 'none';
 
   // Kilde-toggle i Stilling — kun admin (synlighed sættes, indhold styres af stillingApplyServerDefault)
   var kildeToggle = document.getElementById('stilling-kilde-toggle');
@@ -5289,7 +5298,7 @@ function exportCupGuestPdf(cupId){
     '<div class="sub">'+cup.location+(dateStr?' · '+dateStr:'')+'</div>'+
     '<div class="section-title">👥 Stab</div>'+staffHtml+
     '<div class="section-title">📋 Puljekampe</div>'+holdsHtml+
-  '</body></html>';
+  '</div></body></html>';
 
   var w=window.open('','_blank');
   w.document.write(html);
@@ -5422,7 +5431,7 @@ function exportCupPdf(cupId){
     '<span>FC Skanderborg · Pige talent</span>'+
     '<span>'+cup.name+'</span>'+
   '</div>';
-  html+='</body></html>';
+  html+='</div></body></html>';
   openPdfWindow(html);
 }
 
@@ -5935,7 +5944,170 @@ function toggleCard(id){
   if(chev) chev.classList.toggle('open', open);
 }
 
-// ── Startup init ──────────────────────────────────────────────────────────────
+// ── Klub Branding (iOS only) ──────────────────────────────────────────────────
+var _klubLogoDataUrl = null;
+
+function isCapacitorApp(){
+  return window.location.protocol === 'capacitor:' || (window.Capacitor && window.Capacitor.isNative);
+}
+
+function klubBrandingApply(settings){
+  if(!settings) return;
+  var primary   = settings.primary   || '#4B5563';
+  var secondary = settings.secondary || '#9CA3AF';
+  var navn      = settings.navn      || 'Min Klub';
+  var sub       = settings.sub       || 'Spillerstyring';
+  var logo      = settings.logo      || null;
+
+  // Apply CSS variables
+  var root = document.documentElement;
+  root.style.setProperty('--navy',      primary);
+  root.style.setProperty('--navy-mid',  shadeColor(primary, 20));
+  root.style.setProperty('--navy-light',shadeColor(primary, 40));
+  root.style.setProperty('--yellow',    secondary);
+  root.style.setProperty('--text',      primary);
+  root.style.setProperty('--text-mid',  shadeColor(primary, 30));
+
+  // Update header
+  var nameEl = document.getElementById('hdr-club-name');
+  var subEl  = document.getElementById('hdr-club-sub');
+  var crest  = document.getElementById('hdr-crest-img');
+  var crestTxt = document.getElementById('hdr-crest-txt');
+  if(nameEl) nameEl.textContent = navn;
+  if(subEl)  subEl.textContent  = sub;
+
+  if(crest){
+    crest.style.background = secondary;
+    if(logo){
+      crest.innerHTML = '<img src="'+logo+'" style="width:100%;height:100%;object-fit:cover;">';
+    } else {
+      var initials = navn.split(' ').map(function(w){return w[0];}).join('').substring(0,3).toUpperCase();
+      crest.innerHTML = '<span style="color:'+primary+';font-size:13px;font-weight:900;">'+initials+'</span>';
+    }
+  }
+
+  // Update gem-knap farve
+  var gemBtn = document.getElementById('klub-setup-gem-btn');
+  if(gemBtn) gemBtn.style.background = primary;
+  var setupHdr = document.getElementById('klub-setup-hdr');
+  if(setupHdr) setupHdr.style.background = primary;
+}
+
+function shadeColor(hex, percent){
+  hex = hex.replace('#','');
+  if(hex.length===3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  var r=parseInt(hex.substring(0,2),16);
+  var g=parseInt(hex.substring(2,4),16);
+  var b=parseInt(hex.substring(4,6),16);
+  r=Math.min(255,Math.round(r*(1+percent/100)));
+  g=Math.min(255,Math.round(g*(1+percent/100)));
+  b=Math.min(255,Math.round(b*(1+percent/100)));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function klubSetupApply(){
+  try{
+    var raw = localStorage.getItem('fcs-klub-settings');
+    if(raw){
+      klubBrandingApply(JSON.parse(raw));
+    } else if(isCapacitorApp()){
+      // Første gang i iOS-app — vis opsætning
+      klubSetupOpen();
+    }
+  }catch(e){}
+}
+
+function klubSetupOpen(){
+  var overlay = document.getElementById('klubSetupOverlay');
+  if(!overlay) return;
+  // Indlæs gemte værdier
+  try{
+    var raw = localStorage.getItem('fcs-klub-settings');
+    if(raw){
+      var s = JSON.parse(raw);
+      document.getElementById('klub-setup-navn').value = s.navn || '';
+      document.getElementById('klub-setup-sub').value  = s.sub  || '';
+      document.getElementById('klub-setup-primary').value    = s.primary   || '#4B5563';
+      document.getElementById('klub-setup-primary-hex').value = s.primary  || '#4B5563';
+      document.getElementById('klub-setup-secondary').value  = s.secondary || '#9CA3AF';
+      document.getElementById('klub-setup-secondary-hex').value = s.secondary || '#9CA3AF';
+      if(s.logo){ _klubLogoDataUrl = s.logo; document.getElementById('klub-setup-logo-label').textContent = '✅ Logo valgt'; }
+    }
+  }catch(e){}
+  overlay.style.display = '';
+  klubSetupPreview();
+}
+
+function klubSetupPreview(){
+  var navn = document.getElementById('klub-setup-navn').value || 'Min Klub';
+  var primary = document.getElementById('klub-setup-primary').value || '#4B5563';
+  var hdr = document.getElementById('klub-setup-hdr');
+  var nameP = document.getElementById('klub-setup-name-preview');
+  var logoP = document.getElementById('klub-setup-logo-preview');
+  if(hdr) hdr.style.background = primary;
+  if(nameP) nameP.textContent = navn;
+  if(logoP){
+    if(_klubLogoDataUrl){
+      logoP.innerHTML = '<img src="'+_klubLogoDataUrl+'" style="width:100%;height:100%;object-fit:cover;">';
+    } else {
+      var initials = navn.split(' ').map(function(w){return w[0];}).join('').substring(0,3).toUpperCase();
+      logoP.innerHTML = initials || '⚽';
+    }
+  }
+  var gemBtn = document.getElementById('klub-setup-gem-btn');
+  if(gemBtn) gemBtn.style.background = primary;
+  // Sync hex felt
+  document.getElementById('klub-setup-primary-hex').value   = primary;
+  document.getElementById('klub-setup-secondary-hex').value = document.getElementById('klub-setup-secondary').value;
+}
+
+function klubSetupHexInput(val, type){
+  if(/^#[0-9A-Fa-f]{6}$/.test(val)){
+    document.getElementById('klub-setup-'+type).value = val;
+    klubSetupPreview();
+  }
+}
+
+function klubSetupLogoValgt(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var canvas = document.createElement('canvas');
+      var max = 400;
+      var scale = Math.min(max/img.width, max/img.height, 1);
+      canvas.width  = Math.round(img.width*scale);
+      canvas.height = Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      _klubLogoDataUrl = canvas.toDataURL('image/png');
+      document.getElementById('klub-setup-logo-label').textContent = '✅ Logo valgt';
+      klubSetupPreview();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function klubSetupGem(){
+  var settings = {
+    navn:      document.getElementById('klub-setup-navn').value     || 'Min Klub',
+    sub:       document.getElementById('klub-setup-sub').value      || 'Spillerstyring',
+    primary:   document.getElementById('klub-setup-primary').value  || '#4B5563',
+    secondary: document.getElementById('klub-setup-secondary').value|| '#9CA3AF',
+    logo:      _klubLogoDataUrl || null
+  };
+  try{ localStorage.setItem('fcs-klub-settings', JSON.stringify(settings)); }catch(e){}
+  klubBrandingApply(settings);
+  document.getElementById('klubSetupOverlay').style.display = 'none';
+  toast('✅ Klubopsætning gemt');
+}
+
+
+// Anvend klub-branding så tidligt som muligt
+if(isCapacitorApp()) klubSetupApply();
+
 (function(){
   var savedRole = localStorage.getItem('fcs-auth');
   var validRoles = ['admin','viewer','player'];
@@ -8133,5 +8305,51 @@ function docsDelete(id){
 }
 
 </script>
+
+
+
+<!-- Klub-opsætning overlay (iOS only) -->
+<div id="klubSetupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;overflow-y:auto;padding-top:env(safe-area-inset-top);">
+  <div style="background:#fff;margin:40px 20px;border-radius:20px;overflow:hidden;max-width:500px;margin-left:auto;margin-right:auto;">
+    <div id="klub-setup-hdr" style="background:#4B5563;padding:28px 24px 20px;text-align:center;">
+      <div id="klub-setup-logo-preview" style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.2);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#fff;overflow:hidden;">⚽</div>
+      <div id="klub-setup-name-preview" style="font-size:20px;font-weight:800;color:#fff;">Min Klub</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">Spillerstyring</div>
+    </div>
+    <div style="padding:24px;">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Klubnavn</div>
+      <input id="klub-setup-navn" type="text" placeholder="F.eks. FC Skanderborg" style="width:100%;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:15px;margin-bottom:16px;font-family:inherit;" oninput="klubSetupPreview()">
+
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Undertitel</div>
+      <input id="klub-setup-sub" type="text" placeholder="F.eks. Spillerstyring · Pige talent" style="width:100%;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:15px;margin-bottom:16px;font-family:inherit;" oninput="klubSetupPreview()">
+
+      <div style="display:flex;gap:16px;margin-bottom:16px;">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Primærfarve</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="klub-setup-primary" type="color" value="#4B5563" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer;padding:2px;" oninput="klubSetupPreview()">
+            <input id="klub-setup-primary-hex" type="text" value="#4B5563" placeholder="#4B5563" style="flex:1;padding:8px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:monospace;" oninput="klubSetupHexInput(this.value, \'primary\')">
+          </div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Sekundærfarve</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input id="klub-setup-secondary" type="color" value="#9CA3AF" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer;padding:2px;" oninput="klubSetupPreview()">
+            <input id="klub-setup-secondary-hex" type="text" value="#9CA3AF" placeholder="#9CA3AF" style="flex:1;padding:8px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:monospace;" oninput="klubSetupHexInput(this.value, \'secondary\')">
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Klublogo</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px dashed #E5E7EB;border-radius:10px;cursor:pointer;margin-bottom:20px;">
+        <span style="font-size:24px;">🖼️</span>
+        <span id="klub-setup-logo-label" style="font-size:13px;color:#6B7280;">Tryk for at vælge billede fra kamerarulle</span>
+        <input type="file" accept="image/*" style="display:none;" onchange="klubSetupLogoValgt(this)">
+      </label>
+
+      <button onclick="klubSetupGem()" id="klub-setup-gem-btn" style="width:100%;padding:14px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">💾 Gem klubopsætning</button>
+      <button onclick="document.getElementById(\'klubSetupOverlay\').style.display=\'none\'" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Annuller</button>
+    </div>
+  </div>
+</div>
 </body>
-</html>
