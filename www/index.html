@@ -709,10 +709,16 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 </head>
 <body>
 <script>
-(function(){
+(function trySetNative(){
   if(window.Capacitor && window.Capacitor.isNative){
     try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
+    return;
   }
+  setTimeout(function(){
+    if(window.Capacitor && window.Capacitor.isNative){
+      try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
+    }
+  }, 500);
 })();
 </script>
 
@@ -6107,9 +6113,21 @@ function klubSetupGem(){
 }
 
 
-// Anvend klub-branding efter DOM er klar
+// Anvend klub-branding efter DOM er klar — vent på Capacitor
 document.addEventListener('DOMContentLoaded', function(){
-  if(isCapacitorApp()) klubSetupApply();
+  function applyWhenReady(attempts){
+    attempts = attempts || 0;
+    if(window.Capacitor && window.Capacitor.isNative){
+      try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
+      klubSetupApply();
+    } else if(localStorage.getItem('fcs-is-native') === '1'){
+      klubSetupApply();
+    } else if(attempts < 10){
+      setTimeout(function(){ applyWhenReady(attempts+1); }, 200);
+    }
+    // Hvis ikke Capacitor efter 2 sek — er det webappen, gør intet
+  }
+  applyWhenReady();
 });
 
 (function(){
