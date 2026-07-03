@@ -204,7 +204,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 
 .login-overlay{position:fixed;inset:0;background:var(--navy);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;}
 .login-box{background:var(--white);border-radius:16px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;}
-.login-crest{width:64px;height:64px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--navy);margin:0 auto 16px;}
+.login-crest{width:64px;height:64px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;font-weight:700;color:var(--navy);margin:0 auto 16px;}
 .login-title{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:4px;}
 .login-sub{font-size:12px;color:var(--text-soft);margin-bottom:24px;}
 .login-fg{text-align:left;margin-bottom:12px;}
@@ -721,9 +721,9 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-border" style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--yellow);border-radius:16px 16px 0 0;"></div>
-    <div class="login-crest">FCS</div>
-    <div class="login-title">FC Skanderborg</div>
-    <div class="login-sub">Pige talent · Spillerstyring</div>
+    <div class="login-crest" id="login-crest">FCS</div>
+    <div class="login-title" id="login-title">FC Skanderborg</div>
+    <div class="login-sub" id="login-sub">Pige talent · Spillerstyring</div>
     <div class="login-fg">
       <label>Brugernavn</label>
       <input type="text" id="login-user" placeholder="brugernavn" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
@@ -5973,6 +5973,9 @@ function klubBrandingApply(settings){
   var sub       = settings.sub       || 'Spillerstyring';
   var logo      = settings.logo      || null;
 
+  // Kun i iOS — anvend ikke på webappen
+  if(!isCapacitorApp()) return;
+
   // Apply CSS variables
   var root = document.documentElement;
   root.style.setProperty('--navy',      primary);
@@ -5982,25 +5985,29 @@ function klubBrandingApply(settings){
   root.style.setProperty('--text',      primary);
   root.style.setProperty('--text-mid',  shadeColor(primary, 30));
 
-  // Update header
+  // Initialer til crest
+  var initials = navn.split(' ').map(function(w){return w[0];}).join('').substring(0,3).toUpperCase();
+  var crestHtml = logo
+    ? '<img src="'+logo+'" style="width:100%;height:100%;object-fit:cover;">'
+    : '<span style="color:'+primary+';font-size:13px;font-weight:900;">'+initials+'</span>';
+
+  // Opdater header
   var nameEl = document.getElementById('hdr-club-name');
   var subEl  = document.getElementById('hdr-club-sub');
   var crest  = document.getElementById('hdr-crest-img');
-  var crestTxt = document.getElementById('hdr-crest-txt');
   if(nameEl) nameEl.textContent = navn;
   if(subEl)  subEl.textContent  = sub;
+  if(crest){ crest.style.background = secondary; crest.innerHTML = crestHtml; }
 
-  if(crest){
-    crest.style.background = secondary;
-    if(logo){
-      crest.innerHTML = '<img src="'+logo+'" style="width:100%;height:100%;object-fit:cover;">';
-    } else {
-      var initials = navn.split(' ').map(function(w){return w[0];}).join('').substring(0,3).toUpperCase();
-      crest.innerHTML = '<span style="color:'+primary+';font-size:13px;font-weight:900;">'+initials+'</span>';
-    }
-  }
+  // Opdater login-boks
+  var loginCrest = document.getElementById('login-crest');
+  var loginTitle = document.getElementById('login-title');
+  var loginSub   = document.getElementById('login-sub');
+  if(loginTitle) loginTitle.textContent = navn;
+  if(loginSub)   loginSub.textContent   = sub;
+  if(loginCrest){ loginCrest.style.background = secondary; loginCrest.innerHTML = crestHtml; }
 
-  // Update gem-knap farve
+  // Opdater klub-setup panel
   var gemBtn = document.getElementById('klub-setup-gem-btn');
   if(gemBtn) gemBtn.style.background = primary;
   var setupHdr = document.getElementById('klub-setup-hdr');
