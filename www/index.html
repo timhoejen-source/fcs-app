@@ -708,6 +708,14 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 </style>
 </head>
 <body>
+<script>
+(function(){
+  if(window.Capacitor && window.Capacitor.isNative){
+    try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
+  }
+})();
+</script>
+
 
 
 <div class="login-overlay" id="loginOverlay">
@@ -5948,7 +5956,13 @@ function toggleCard(id){
 var _klubLogoDataUrl = null;
 
 function isCapacitorApp(){
-  return window.location.protocol === 'capacitor:' || (window.Capacitor && window.Capacitor.isNative);
+  try{
+    return !!(window.Capacitor && window.Capacitor.isNative) ||
+           window.location.protocol === 'capacitor:' ||
+           typeof window.cordova !== 'undefined' ||
+           /Capacitor/.test(navigator.userAgent) ||
+           localStorage.getItem('fcs-is-native') === '1';
+  }catch(e){ return false; }
 }
 
 function klubBrandingApply(settings){
@@ -6105,8 +6119,10 @@ function klubSetupGem(){
 }
 
 
-// Anvend klub-branding så tidligt som muligt
-if(isCapacitorApp()) klubSetupApply();
+// Anvend klub-branding efter DOM er klar
+document.addEventListener('DOMContentLoaded', function(){
+  if(isCapacitorApp()) klubSetupApply();
+});
 
 (function(){
   var savedRole = localStorage.getItem('fcs-auth');
