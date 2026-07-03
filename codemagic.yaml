@@ -20,7 +20,7 @@ workflows:
           npx cap sync ios
       - name: Set build number
         script: |
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 16" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 17" ios/App/App/Info.plist
       - name: Build iOS
         script: |
           xcode-project use-profiles
