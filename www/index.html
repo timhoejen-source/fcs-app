@@ -1605,12 +1605,18 @@ function onLoginSuccess(){
 
 async function doLogout(){
   if(!confirm('Er du sikker på at du vil logge ud?')) return;
-  try{ await fetch(AUTH_URL+'?action=logout',{method:'POST',credentials:'include'}); }catch(e){}
+  fetch(AUTH_URL+'?action=logout',{method:'POST',credentials:'include'}).catch(function(){});
   localStorage.removeItem('fcs-auth');
   localStorage.removeItem('fcs-user');
   localStorage.removeItem('fcs-name');
   localStorage.removeItem('fcs-active-tab');
-  window.location.reload();
+  currentRole = '';
+  players=[]; matches=[]; teams=[]; trainings=[]; cups=[];
+  // Vis login-overlay direkte — reload ikke nødvendigt
+  document.getElementById('loginOverlay').style.display = 'flex';
+  render(); renderKampe();
+  // I Capacitor: kør klub-setup flow igen
+  if(isCapacitorApp()) applyWhenReady();
 }
 
 function applyRole(){
@@ -6147,17 +6153,15 @@ function applyWhenReady(attempts){
     applyRole();
     setTimeout(function(){ loadFromServer(); }, 300);
   } else {
-    // På webappen: vis login med det samme
-    // I Capacitor-appen: vent på native detection
+    // Ikke logget ind
     if(window.location.protocol === 'capacitor:' || typeof window.cordova !== 'undefined'){
+      // Capacitor — skjul alt og kør klub-setup flow
       document.getElementById('loginOverlay').style.display = 'none';
-      renderTeams(); renderSelects(); render();
       applyWhenReady();
     } else {
-      // Web — start polling men vis login med det samme som fallback
+      // Web — vis login med det samme
       document.getElementById('loginOverlay').style.display = 'flex';
       renderTeams(); renderSelects(); render();
-      applyWhenReady(); // Poller — hvis Capacitor dukker op alligevel
     }
   }
 })();
