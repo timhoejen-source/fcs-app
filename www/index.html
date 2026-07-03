@@ -6049,6 +6049,22 @@ function klubSetupOpen(foerstgang){
   if(cancelBtn) cancelBtn.style.display = foerstgang ? 'none' : '';
   var gemBtn = document.getElementById('klub-setup-gem-btn');
   if(gemBtn) gemBtn.textContent = foerstgang ? '⚽ Kom i gang' : '💾 Gem klubopsætning';
+
+  // Tilslut event listeners til preview
+  ['klub-setup-navn','klub-setup-sub','klub-setup-primary','klub-setup-secondary'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) { el.removeEventListener('input', klubSetupPreview); el.addEventListener('input', klubSetupPreview); }
+  });
+  ['klub-setup-primary-hex','klub-setup-secondary-hex'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){
+      el.removeEventListener('input', el._klubhexhandler||function(){});
+      var type = id.includes('primary') ? 'primary' : 'secondary';
+      el._klubhexhandler = function(){ klubSetupHexInput(this.value, type); };
+      el.addEventListener('input', el._klubhexhandler);
+    }
+  });
+
   try{
     var raw = localStorage.getItem('fcs-klub-settings');
     if(raw && !foerstgang){
@@ -8306,34 +8322,36 @@ function docsDelete(id){
     </div>
     <div style="padding:24px;">
       <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Klubnavn</div>
-      <input id="klub-setup-navn" type="text" placeholder="F.eks. FC Skanderborg" style="width:100%;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:15px;margin-bottom:16px;font-family:inherit;" oninput="klubSetupPreview()">
+      <input id="klub-setup-navn" type="text" placeholder="F.eks. FC Skanderborg" style="width:100%;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:15px;margin-bottom:16px;font-family:inherit;" data-klubpreview="1">
 
       <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Undertitel</div>
-      <input id="klub-setup-sub" type="text" placeholder="F.eks. Spillerstyring · Pige talent" style="width:100%;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:15px;margin-bottom:16px;font-family:inherit;" oninput="klubSetupPreview()">
+      <input id="klub-setup-sub" type="text" placeholder="F.eks. Spillerstyring · Pige talent" style="width:100%;padding:10px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:15px;margin-bottom:16px;font-family:inherit;" data-klubpreview="1">
 
       <div style="display:flex;gap:16px;margin-bottom:16px;">
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Primærfarve</div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input id="klub-setup-primary" type="color" value="#4B5563" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer;padding:2px;" oninput="klubSetupPreview()">
+            <input id="klub-setup-primary" type="color" value="#4B5563" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer;padding:2px;" data-klubpreview="1">
             <input id="klub-setup-primary-hex" type="text" value="#4B5563" placeholder="#4B5563" style="flex:1;padding:8px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:monospace;" oninput="klubSetupHexInput(this.value, \'primary\')">
           </div>
         </div>
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Sekundærfarve</div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input id="klub-setup-secondary" type="color" value="#9CA3AF" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer;padding:2px;" oninput="klubSetupPreview()">
+            <input id="klub-setup-secondary" type="color" value="#9CA3AF" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer;padding:2px;" data-klubpreview="1">
             <input id="klub-setup-secondary-hex" type="text" value="#9CA3AF" placeholder="#9CA3AF" style="flex:1;padding:8px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:monospace;" oninput="klubSetupHexInput(this.value, \'secondary\')">
           </div>
         </div>
       </div>
 
       <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">Klublogo</div>
-      <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px dashed #E5E7EB;border-radius:10px;cursor:pointer;margin-bottom:20px;">
-        <span style="font-size:24px;">🖼️</span>
-        <span id="klub-setup-logo-label" style="font-size:13px;color:#6B7280;">Tryk for at vælge billede fra kamerarulle</span>
-        <input type="file" accept="image/*" style="display:none;" onchange="klubSetupLogoValgt(this)">
-      </label>
+      <div style="margin-bottom:20px;">
+        <button type="button" onclick="document.getElementById('klub-logo-input').click()" style="width:100%;display:flex;align-items:center;gap:10px;padding:12px;border:2px dashed #E5E7EB;border-radius:10px;cursor:pointer;background:#fff;text-align:left;font-family:inherit;">
+          <span style="font-size:24px;">🖼️</span>
+          <span id="klub-setup-logo-label" style="font-size:13px;color:#6B7280;">Tryk for at vælge billede</span>
+        </button>
+        <input type="file" id="klub-logo-input" accept="image/*" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;" onchange="klubSetupLogoValgt(this)">
+      </div>
 
       <button onclick="klubSetupGem()" id="klub-setup-gem-btn" style="width:100%;padding:14px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">💾 Gem klubopsætning</button>
       <button onclick="document.getElementById(\'klubSetupOverlay\').style.display=\'none\'" id="klub-setup-cancel-btn" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Annuller</button>
