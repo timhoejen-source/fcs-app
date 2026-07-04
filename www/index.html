@@ -709,17 +709,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 </head>
 <body>
 <script>
-(function trySetNative(){
-  if(window.Capacitor && window.Capacitor.isNative){
-    try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
-    return;
-  }
-  setTimeout(function(){
-    if(window.Capacitor && window.Capacitor.isNative){
-      try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
-    }
-  }, 500);
-})();
+// NAS-version — IS_NATIVE_APP er ikke sat her
 </script>
 
 
@@ -5968,12 +5958,8 @@ function toggleCard(id){
 var _klubLogoDataUrl = null;
 
 function isCapacitorApp(){
-  try{
-    // KUN tjek reelle Capacitor signaler — aldrig localStorage (bruges til debug)
-    return !!(window.Capacitor && window.Capacitor.isNative) ||
-           window.location.protocol === 'capacitor:' ||
-           typeof window.cordova !== 'undefined';
-  }catch(e){ return false; }
+  // IS_NATIVE_APP sættes kun i www/index.html (iOS-appen) — aldrig på NAS
+  return window.IS_NATIVE_APP === true;
 }
 
 function klubBrandingApply(settings){
@@ -6124,22 +6110,8 @@ function klubSetupGem(){
 
 
 // applyWhenReady kaldes fra startup-IIFE nedenfor
-function applyWhenReady(attempts){
-  attempts = attempts || 0;
-  if(window.Capacitor && window.Capacitor.isNative){
-    // Bekræftet Capacitor native
-    try{ localStorage.setItem('fcs-is-native','1'); }catch(e){}
-    klubSetupApply();
-  } else if(attempts < 15){
-    // Vent på at Capacitor loader
-    setTimeout(function(){ applyWhenReady(attempts+1); }, 200);
-  } else {
-    // Ikke Capacitor — det er webappen. Ryd native flag og vis login normalt
-    try{ localStorage.removeItem('fcs-is-native'); }catch(e){}
-    var lo = document.getElementById('loginOverlay');
-    if(lo) lo.style.display = 'flex';
-  }
-}
+// applyWhenReady er ikke længere nødvendig — bruges ikke
+function applyWhenReady(){ klubSetupApply(); }
 
 (function(){
   var savedRole = localStorage.getItem('fcs-auth');
@@ -6154,10 +6126,10 @@ function applyWhenReady(attempts){
     setTimeout(function(){ loadFromServer(); }, 300);
   } else {
     // Ikke logget ind
-    if(window.location.protocol === 'capacitor:' || typeof window.cordova !== 'undefined'){
-      // Capacitor — skjul alt og kør klub-setup flow
+    if(isCapacitorApp()){
+      // iOS-app — kør klub-setup flow
       document.getElementById('loginOverlay').style.display = 'none';
-      applyWhenReady();
+      klubSetupApply();
     } else {
       // Web — vis login med det samme
       document.getElementById('loginOverlay').style.display = 'flex';
