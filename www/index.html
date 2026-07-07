@@ -1897,6 +1897,20 @@ function trSaveToken(val){
 
 let mKampStats = {}; // {kampName: {maal,skud,afl,assists,min,vende}}
 
+function saveCurrentKampStats(){
+  var sel = document.getElementById('m-stats-kamp-sel');
+  if(!sel || !sel.value) return;
+  var name = sel.value;
+  mKampStats[name] = {
+    maal:    parseInt((document.getElementById('m-maal')    ||{value:0}).value) || 0,
+    skud:    parseInt((document.getElementById('m-skud')    ||{value:0}).value) || 0,
+    assists: parseInt((document.getElementById('m-assists') ||{value:0}).value) || 0,
+    afl:     parseInt((document.getElementById('m-afl')     ||{value:0}).value) || 0,
+    vende:   parseInt((document.getElementById('m-vende')   ||{value:0}).value) || 0,
+    min:     parseInt((document.getElementById('m-min')     ||{value:0}).value) || 0,
+  };
+}
+
 function renderModalKampStats(){
   var sel = document.getElementById('m-stats-kamp-sel');
   var form = document.getElementById('m-stats-kamp-form');
