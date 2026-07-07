@@ -732,6 +732,10 @@ window.IS_NATIVE_APP = true;
     <button class="login-btn" onclick="doLogin()">Log ind</button>
     <button class="login-btn" onclick="doGuestLogin()" style="margin-top:8px;background:var(--g100);color:var(--text-mid);border:1.5px solid var(--g200);">👁️ Fortsæt som gæst</button>
     <div class="login-err" id="login-err"></div>
+    <div style="margin-top:16px;border-top:1px solid var(--g100);padding-top:12px;display:flex;gap:8px;">
+      <button onclick="openOpretKlub()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">⚽ Opret ny klub</button>
+      <button onclick="openKontakt()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">✉️ Kontakt admin</button>
+    </div>
   </div>
 </div>
 
@@ -5310,143 +5314,6 @@ function exportCupGuestPdf(cupId){
     '<div class="section-title">👥 Stab</div>'+staffHtml+
     '<div class="section-title">📋 Puljekampe</div>'+holdsHtml+
   '</div></body></html>';
-
-  var w=window.open('','_blank');
-  w.document.write(html);
-  w.document.close();
-  w.print();
-}
-
-function exportCupPdf(cupId){
-  var cup=cups.find(function(c){ return c.id===cupId; });
-  if(!cup){ toast('⚠️ Cup ikke fundet'); return; }
-
-  var dateStr='';
-  if(cup.dateFrom&&cup.dateTo)
-    dateStr=new Date(cup.dateFrom).toLocaleDateString('da-DK',{day:'numeric',month:'short'})+
-      ' – '+new Date(cup.dateTo).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
-  else if(cup.dateFrom)
-    dateStr=new Date(cup.dateFrom).toLocaleDateString('da-DK',{day:'numeric',month:'long',year:'numeric'});
-
-  var holdsHtml=cup.holds.map(function(hold){
-    var puljeKampeForPdf = hold.puljeKampe || [];
-    var totalKampMaxPdf = puljeKampeForPdf.length * 2 * (cup.kampMin || 20);
-    function minTextFor(pid){
-      var totalMin = puljeKampeForPdf.reduce(function(s,k){ return s + ((k.minutes||{})[pid] || 0); }, 0);
-      if(!totalMin) return '<span style="color:#94A3B8;">–</span>';
-      var pct = totalKampMaxPdf>0 ? Math.round(totalMin/totalKampMaxPdf*100) : 0;
-      return '<strong>'+totalMin+' min</strong>'+(totalKampMaxPdf>0?' <span style="color:#5A7A9F;font-size:9px;">('+pct+'%)</span>':'');
-    }
-    var playerRows=hold.players.map(function(pid){
-      var p=players.find(function(x){return x.id===pid;});
-      if(!p) return '';
-      var posArr=Array.isArray(p.pos)?p.pos:(p.pos?[p.pos]:[]);
-      var pTeams=Array.isArray(p.team)?p.team.join(', '):(p.team||'');
-      var totalMin=puljeKampeForPdf.reduce(function(s,k){return s+((k.minutes||{})[pid]||0);},0);
-      var totalGoals=puljeKampeForPdf.reduce(function(s,k){return s+((k.goals||{})[pid]||0);},0);
-      var pct=totalKampMaxPdf>0?Math.round(totalMin/totalKampMaxPdf*100):0;
-      var ageStr=p.dob?(function(){var _t=new Date(),_b=new Date(p.dob),_a=_t.getFullYear()-_b.getFullYear();if(_t.getMonth()<_b.getMonth()||(_t.getMonth()===_b.getMonth()&&_t.getDate()<_b.getDate()))_a--;return _a+' år · '+new Date(p.dob).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});}()):(p.age?p.age+' år':'–');
-      return '<tr>'+
-        '<td style="padding:4px 10px;font-weight:600;">'+(p.jersey?'<strong>#'+p.jersey+'</strong> ':'')+p.name+'</td>'+
-        '<td style="padding:4px 10px;font-size:10px;color:#5A7A9F;">'+pTeams+'</td>'+
-        '<td style="padding:4px 10px;font-size:10px;color:#5A7A9F;">'+ageStr+'</td>'+
-        '<td style="padding:4px 10px;font-size:10px;">'+posArr.map(function(px){return POS_LABELS[px]||px;}).join(' / ')+'</td>'+
-        '<td style="padding:4px 10px;text-align:right;">'+(totalMin>0?'<strong>'+totalMin+' min</strong> <span style="color:#5A7A9F;font-size:9px;">('+pct+'%)</span>':'<span style="color:#94A3B8;">–</span>')+'</td>'+
-        '<td style="padding:4px 10px;text-align:center;font-weight:700;color:#16A34A;">'+(totalGoals>0?totalGoals+' ⚽':'–')+'</td>'+
-      '</tr>';
-    }).join('');
-
-    var loaneeRows=(hold.loanees||[]).map(function(l){
-      var loanAge=''; if(l.dob){var _t=new Date(),_b=new Date(l.dob),_a=_t.getFullYear()-_b.getFullYear();if(_t.getMonth()<_b.getMonth()||(_t.getMonth()===_b.getMonth()&&_t.getDate()<_b.getDate()))_a--;loanAge=_a+' år · '+new Date(l.dob).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});}else{loanAge='–';}
-      var lPos=((hold.playerPositions||{})[l.id])||[];
-      var lPosStr=lPos.filter(Boolean).map(function(pos){return POS_LABELS[pos]||pos;}).join(' / ')||'–';
-      var lMin=puljeKampeForPdf.reduce(function(s,k){return s+((k.minutes||{})[l.id]||0);},0);
-      var lGoals=puljeKampeForPdf.reduce(function(s,k){return s+((k.goals||{})[l.id]||0);},0);
-      var lPct=totalKampMaxPdf>0?Math.round(lMin/totalKampMaxPdf*100):0;
-      return '<tr style="background:#EBF2FB;">'+
-        '<td style="padding:4px 10px;font-weight:600;color:#1A6EC0;">'+l.name+' <span style="font-size:9px;font-weight:700;background:#1A6EC0;color:#fff;padding:1px 5px;border-radius:3px;">LÅN</span></td>'+
-        '<td style="padding:4px 10px;font-size:10px;">'+(l.team||'–')+'</td>'+
-        '<td style="padding:4px 10px;font-size:10px;">'+loanAge+'</td>'+
-        '<td style="padding:4px 10px;font-size:10px;">'+lPosStr+'</td>'+
-        '<td style="padding:4px 10px;text-align:right;">'+(lMin>0?'<strong>'+lMin+' min</strong> <span style="color:#5A7A9F;font-size:9px;">('+lPct+'%)</span>':'<span style="color:#94A3B8;">–</span>')+'</td>'+
-        '<td style="padding:4px 10px;text-align:center;font-weight:700;color:#16A34A;">'+(lGoals>0?lGoals+' ⚽':'–')+'</td>'+
-      '</tr>';
-    }).join('');
-
-    // Kampresultater tabel
-    var kampResultRows=puljeKampeForPdf.map(function(k,ki){
-      var hasRes=k.resH!==''&&k.resA!=='',resText=hasRes?k.resH+'-'+k.resA:'–';
-      var fcs2=parseInt(k.resH),opp2=parseInt(k.resA);
-      var resBg2=!hasRes?'#F1F5F9':fcs2>opp2?'#DCFCE7':fcs2===opp2?'#FEF9C3':'#FEE2E2';
-      var resColor2=!hasRes?'#64748B':fcs2>opp2?'#16A34A':fcs2===opp2?'#854D0E':'#dc2626';
-      var d=k.date?new Date(k.date).toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'}):'';
-      var allPdf2=(hold.players||[]).map(function(id){var p=players.find(function(x){return x.id===id;});return p?{id:p.id,name:p.name}:null;}).filter(Boolean).concat((hold.loanees||[]).map(function(l){return {id:l.id,name:l.name};}));
-      var goals2=Object.keys(k.goals||{}).filter(function(pid){return k.goals[pid]>0;}).map(function(pid){var pl=allPdf2.find(function(x){return x.id===pid;});return (pl?pl.name:'?')+(k.goals[pid]>1?' ×'+k.goals[pid]:'');}).join(', ');
-      return '<tr style="background:'+(ki%2===0?'#fff':'#F8FAFC')+'">'+
-        '<td style="padding:4px 10px;font-size:11px;font-weight:700;">'+(ki+1)+'. vs. '+k.opponent+'</td>'+
-        '<td style="padding:4px 10px;font-size:10px;color:#64748B;">'+d+(k.time?' · '+k.time:'')+'</td>'+
-        '<td style="padding:4px 10px;text-align:center;"><span style="font-weight:700;padding:2px 8px;border-radius:5px;background:'+resBg2+';color:'+resColor2+';">'+resText+'</span></td>'+
-        '<td style="padding:4px 10px;font-size:10px;color:#16A34A;">'+(goals2?'⚽ '+goals2:'–')+'</td>'+
-      '</tr>';
-    }).join('');
-    var kampResultHtml=puljeKampeForPdf.length?'<div style="margin-top:5mm;"><div style="font-size:10px;font-weight:700;color:#0A2342;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">📋 Kampe & resultater</div><table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;"><thead><tr style="background:#0A2342;"><th style="padding:4px 10px;text-align:left;font-size:9px;color:#F5C400;text-transform:uppercase;">Kamp</th><th style="padding:4px 10px;font-size:9px;color:#F5C400;text-transform:uppercase;">Dato</th><th style="padding:4px 10px;text-align:center;font-size:9px;color:#F5C400;text-transform:uppercase;">Resultat</th><th style="padding:4px 10px;font-size:9px;color:#F5C400;text-transform:uppercase;">Målscorere</th></tr></thead><tbody>'+kampResultRows+'</tbody></table></div>':'';
-
-    var total=hold.players.length+(hold.loanees||[]).length;
-
-    return '<div style="margin-bottom:8mm;">'+
-      '<div style="background:#0A2342;color:#F5C400;padding:5px 10px;border-radius:6px 6px 0 0;font-size:11px;font-weight:700;display:flex;justify-content:space-between;">'+
-        '<span>⚽ '+hold.name+'</span>'+
-        '<span>'+total+' spillere</span>'+
-      '</div>'+
-      '<table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-top:none;">'+
-        '<thead><tr style="background:#F1F5F9;">'+
-          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.07em;">Spiller</th>'+
-          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;">Hold</th>'+
-          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;">Alder</th>'+
-          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;">Position</th>'+
-          '<th style="padding:4px 10px;text-align:right;font-size:9px;text-transform:uppercase;">⏱️ Spilletid</th>'+
-          '<th style="padding:4px 10px;text-align:center;font-size:9px;text-transform:uppercase;">⚽ Mål</th>'+
-        '</tr></thead>'+
-        '<tbody>'+playerRows+loaneeRows+'</tbody>'+
-      '</table>'+
-      kampResultHtml+
-    '</div>';
-  }).join('');
-
-  var totalAll=cup.holds.reduce(function(a,h){return a+h.players.length+(h.loanees||[]).length;},0);
-
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
-    '<style>@page{size:A4 portrait;margin:12mm 14mm;}'+
-    '@import url(\'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap\');'+
-    '*{box-sizing:border-box;margin:0;padding:0;}'+
-    'body{font-family:\'DM Sans\',sans-serif;color:#0A2342;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'+
-    'tbody tr:nth-child(even):not([style*="background:#EBF2FB"]){background:#F8FAFC;}'+
-    '</style></head><body>';
-
-  html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:4mm;border-bottom:3px solid #F5C400;margin-bottom:5mm;">'+
-    '<div>'+
-      '<div style="font-size:20px;font-weight:700;margin-bottom:2px;">'+cup.name+'</div>'+
-      '<div style="font-size:10px;color:#5A7A9F;">'+
-        (dateStr?'📅 '+dateStr+'  ':'')+
-        (cup.location?'📍 '+cup.location:'')+'</div>'+
-      '<div style="margin-top:3mm;display:flex;gap:8px;">'+
-        '<span style="background:#DBEAFE;color:#1A6EC0;font-size:9px;font-weight:700;padding:2px 10px;border-radius:20px;">'+cup.holds.length+' hold</span>'+
-        '<span style="background:#DCFCE7;color:#16A34A;font-size:9px;font-weight:700;padding:2px 10px;border-radius:20px;">'+totalAll+' spillere i alt</span>'+
-      '</div>'+
-    '</div>'+
-    '<div style="text-align:right;font-size:9px;color:#94A3B8;">FC Skanderborg · Pige talent<br>'+new Date().toLocaleDateString('da-DK')+'</div>'+
-  '</div>';
-
-  html+=holdsHtml;
-  html+='<div style="margin-top:5mm;border-top:1px solid #E2E8F0;padding-top:3mm;display:flex;justify-content:space-between;font-size:8px;color:#94A3B8;">'+
-    '<span>FC Skanderborg · Pige talent</span>'+
-    '<span>'+cup.name+'</span>'+
-  '</div>';
-  html+='</div></body></html>';
-  openPdfWindow(html);
-}
-
-
 // ── Øvelser ───────────────────────────────────────────────────────────────────
 
 // ── Persistent event delegation for cup ──────────────────────────────────────
@@ -5955,7 +5822,100 @@ function toggleCard(id){
   if(chev) chev.classList.toggle('open', open);
 }
 
-// ── Klub Branding (iOS only) ──────────────────────────────────────────────────
+// ── Multi-tenant: Opret klub & Kontakt ───────────────────────────────────────
+const REGISTER_URL = BASE_URL + 'register.php';
+
+function openOpretKlub(){
+  document.getElementById('opretKlubOverlay').style.display = '';
+  document.getElementById('opret-klub-err').style.display = 'none';
+}
+
+function openKontakt(){
+  document.getElementById('kontaktOverlay').style.display = '';
+  document.getElementById('kontakt-err').style.display = 'none';
+}
+
+var _opretIdTimer = null;
+function opretKlubIdCheck(){
+  var el = document.getElementById('opret-klub-id');
+  var status = document.getElementById('opret-id-status');
+  var info = document.getElementById('opret-id-info');
+  var val = el.value.toLowerCase().replace(/[^a-z0-9]/g,'');
+  el.value = val;
+  if(val.length < 2){ status.textContent=''; info.textContent='Kun bogstaver og tal, maks 10 tegn'; return; }
+  status.textContent='⏳';
+  clearTimeout(_opretIdTimer);
+  _opretIdTimer = setTimeout(function(){
+    fetch(REGISTER_URL+'?action=check_id',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id: val})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.available){
+        status.textContent='✅';
+        info.textContent = val + ' er ledigt';
+        info.style.color = '#16A34A';
+      } else {
+        status.textContent='❌';
+        info.textContent = val + ' er allerede i brug';
+        info.style.color = '#dc2626';
+      }
+    }).catch(function(){ status.textContent=''; });
+  }, 500);
+}
+
+async function submitOpretKlub(){
+  var err = document.getElementById('opret-klub-err');
+  err.style.display = 'none';
+  var payload = {
+    action:           'opret',
+    klub_navn:        document.getElementById('opret-klub-navn').value.trim(),
+    klub_id:          document.getElementById('opret-klub-id').value.trim(),
+    admin_navn:       document.getElementById('opret-admin-navn').value.trim(),
+    admin_brugernavn: document.getElementById('opret-admin-user').value.trim(),
+    admin_pw:         document.getElementById('opret-admin-pw').value,
+  };
+  if(!payload.klub_navn||!payload.klub_id||!payload.admin_navn||!payload.admin_brugernavn||!payload.admin_pw){
+    err.textContent='Alle felter skal udfyldes'; err.style.display=''; return;
+  }
+  try{
+    var res = await fetch(REGISTER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var data = await res.json();
+    if(!data.ok){ err.textContent=data.error||'Fejl'; err.style.display=''; return; }
+    document.getElementById('opretKlubOverlay').style.display='none';
+    // Log automatisk ind
+    document.getElementById('login-user').value = payload.admin_brugernavn;
+    document.getElementById('login-pass').value = payload.admin_pw;
+    await doLogin();
+  }catch(e){
+    err.textContent='Netværksfejl: '+e.message; err.style.display='';
+  }
+}
+
+async function submitKontakt(){
+  var err = document.getElementById('kontakt-err');
+  err.style.display='none';
+  var payload = {
+    action:     'kontakt',
+    navn:       document.getElementById('kontakt-navn').value.trim(),
+    email:      document.getElementById('kontakt-email').value.trim(),
+    besked:     document.getElementById('kontakt-besked').value.trim(),
+    klub_hint:  document.getElementById('kontakt-klub').value.trim(),
+  };
+  if(!payload.navn||!payload.email||!payload.besked){
+    err.textContent='Udfyld alle påkrævede felter'; err.style.display=''; return;
+  }
+  try{
+    var res = await fetch(REGISTER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var data = await res.json();
+    if(!data.ok){ err.textContent=data.error||'Fejl'; err.style.display=''; return; }
+    document.getElementById('kontaktOverlay').style.display='none';
+    toast('✅ Besked sendt — vi vender tilbage hurtigst muligt');
+  }catch(e){
+    err.textContent='Netværksfejl: '+e.message; err.style.display='';
+  }
+}
+
+
 var _klubLogoDataUrl = null;
 
 function isCapacitorApp(){
@@ -6051,6 +6011,8 @@ function klubSetupOpen(foerstgang){
   overlay.dataset.foerstgang = foerstgang ? '1' : '';
   var cancelBtn = document.getElementById('klub-setup-cancel-btn');
   if(cancelBtn) cancelBtn.style.display = foerstgang ? 'none' : '';
+  var nulstilBtn = document.getElementById('klub-setup-nulstil-btn');
+  if(nulstilBtn) nulstilBtn.style.display = (!foerstgang && localStorage.getItem('fcs-klub-settings')) ? '' : 'none';
   var gemBtn = document.getElementById('klub-setup-gem-btn');
   if(gemBtn) gemBtn.textContent = foerstgang ? '⚽ Kom i gang' : '💾 Gem klubopsætning';
 
@@ -6140,6 +6102,31 @@ function klubSetupLogoValgt(input){
   reader.readAsDataURL(file);
 }
 
+
+
+function klubSetupNulstil(){
+  if(!confirm('Nulstil klubdesign til standard?\n\nNavn, farver og logo slettes fra denne enhed.')) return;
+  try{ localStorage.removeItem('fcs-klub-settings'); }catch(e){}
+  _klubLogoDataUrl = null;
+  // Nulstil CSS variabler
+  var root = document.documentElement;
+  root.style.removeProperty('--navy');
+  root.style.removeProperty('--navy-mid');
+  root.style.removeProperty('--navy-light');
+  root.style.removeProperty('--yellow');
+  root.style.removeProperty('--text');
+  root.style.removeProperty('--text-mid');
+  // Nulstil header og login
+  var nameEl = document.getElementById('hdr-club-name');
+  var subEl  = document.getElementById('hdr-club-sub');
+  var crest  = document.getElementById('hdr-crest-img');
+  if(nameEl) nameEl.textContent = 'Min Klub';
+  if(subEl)  subEl.textContent  = 'Spillerstyring';
+  if(crest){ crest.style.background = '#E5E7EB'; crest.innerHTML = '<span style="font-size:16px;">⚽</span>'; }
+  document.getElementById('klubSetupOverlay').style.display = 'none';
+  toast('✅ Klubdesign nulstillet');
+}
+
 function klubSetupGem(){
   var overlay = document.getElementById('klubSetupOverlay');
   var foerstgang = overlay && overlay.dataset.foerstgang === '1';
@@ -6165,7 +6152,6 @@ function klubSetupGem(){
 }
 
 
-// applyWhenReady kaldes fra startup-IIFE nedenfor
 // applyWhenReady er ikke længere nødvendig — bruges ikke
 function applyWhenReady(){ klubSetupApply(); }
 
@@ -8372,6 +8358,8 @@ function docsDelete(id){
   docs=docs.filter(function(d){return d.id!==id;}); saveDocs(); renderDocs(); toast('🗑️ Dokument slettet');
 }
 
+
+}
 </script>
 
 
@@ -8419,7 +8407,333 @@ function docsDelete(id){
 
       <button onclick="klubSetupGem()" id="klub-setup-gem-btn" style="width:100%;padding:14px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">💾 Gem klubopsætning</button>
       <button onclick="document.getElementById(\'klubSetupOverlay\').style.display=\'none\'" id="klub-setup-cancel-btn" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Annuller</button>
+      <button id="klub-setup-nulstil-btn" onclick="klubSetupNulstil()" style="display:none;width:100%;padding:10px;background:none;color:#EF4444;border:1px solid #FCA5A5;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;">🗑️ Nulstil til standard</button>
     </div>
   </div>
 </div>
+
+<!-- Opret ny klub overlay -->
+<div id="opretKlubOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding-top:40px;">
+  <div style="background:#fff;margin:0 16px 40px;border-radius:16px;overflow:hidden;max-width:480px;margin-left:auto;margin-right:auto;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">⚽ Opret ny klub</div>
+      <button onclick="document.getElementById('opretKlubOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Opret din klubs eget spillerstyringsystem. Du bliver automatisk admin.</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klubnavn *</label>
+      <input id="opret-klub-navn" type="text" placeholder="F.eks. FC Eksempel" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID (kort unikt navn) *</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <input id="opret-klub-id" type="text" placeholder="feks" maxlength="10" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretKlubIdCheck()">
+        <span id="opret-id-status" style="font-size:18px;width:24px;flex-shrink:0;"></span>
+      </div>
+      <div id="opret-id-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Kun bogstaver og tal, maks 10 tegn</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="opret-admin-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
+      <input id="opret-admin-user" type="text" placeholder="Dit unikke brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
+      <input id="opret-admin-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;">
+      
+      <div id="opret-klub-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitOpretKlub()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">✅ Opret klub og log ind</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kontakt admin overlay -->
+<div id="kontaktOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding-top:40px;">
+  <div style="background:#fff;margin:0 16px 40px;border-radius:16px;overflow:hidden;max-width:480px;margin-left:auto;margin-right:auto;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">✉️ Kontakt administrator</div>
+      <button onclick="document.getElementById('kontaktOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Har du spørgsmål eller brug for hjælp? Skriv en besked til administratoren.</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="kontakt-navn" type="text" placeholder="Dit navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Email *</label>
+      <input id="kontakt-email" type="email" placeholder="din@email.dk" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Din klub (valgfrit)</label>
+      <input id="kontakt-klub" type="text" placeholder="Klubnavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Besked *</label>
+      <textarea id="kontakt-besked" placeholder="Skriv din besked her..." rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;"></textarea>
+      
+      <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
+    </div>
+  </div>
+</div>
+
+<!-- Opret ny klub overlay -->
+<div id="opretKlubOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding-top:40px;">
+  <div style="background:#fff;margin:0 16px 40px;border-radius:16px;overflow:hidden;max-width:480px;margin-left:auto;margin-right:auto;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">⚽ Opret ny klub</div>
+      <button onclick="document.getElementById('opretKlubOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Opret din klubs eget spillerstyringsystem. Du bliver automatisk admin.</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klubnavn *</label>
+      <input id="opret-klub-navn" type="text" placeholder="F.eks. FC Eksempel" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID (kort unikt navn) *</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <input id="opret-klub-id" type="text" placeholder="feks" maxlength="10" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretKlubIdCheck()">
+        <span id="opret-id-status" style="font-size:18px;width:24px;flex-shrink:0;"></span>
+      </div>
+      <div id="opret-id-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Kun bogstaver og tal, maks 10 tegn</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="opret-admin-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
+      <input id="opret-admin-user" type="text" placeholder="Dit unikke brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
+      <input id="opret-admin-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;">
+      
+      <div id="opret-klub-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitOpretKlub()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">✅ Opret klub og log ind</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kontakt admin overlay -->
+<div id="kontaktOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding-top:40px;">
+  <div style="background:#fff;margin:0 16px 40px;border-radius:16px;overflow:hidden;max-width:480px;margin-left:auto;margin-right:auto;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">✉️ Kontakt administrator</div>
+      <button onclick="document.getElementById('kontaktOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Har du spørgsmål eller brug for hjælp? Skriv en besked til administratoren.</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="kontakt-navn" type="text" placeholder="Dit navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Email *</label>
+      <input id="kontakt-email" type="email" placeholder="din@email.dk" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Din klub (valgfrit)</label>
+      <input id="kontakt-klub" type="text" placeholder="Klubnavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Besked *</label>
+      <textarea id="kontakt-besked" placeholder="Skriv din besked her..." rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;"></textarea>
+      
+      <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
+    </div>
+  </div>
+</div>
+</body></html>';
+
+  var w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
+}
+
+function exportCupPdf(cupId){
+  var cup=cups.find(function(c){ return c.id===cupId; });
+  if(!cup){ toast('⚠️ Cup ikke fundet'); return; }
+
+  var dateStr='';
+  if(cup.dateFrom&&cup.dateTo)
+    dateStr=new Date(cup.dateFrom).toLocaleDateString('da-DK',{day:'numeric',month:'short'})+
+      ' – '+new Date(cup.dateTo).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
+  else if(cup.dateFrom)
+    dateStr=new Date(cup.dateFrom).toLocaleDateString('da-DK',{day:'numeric',month:'long',year:'numeric'});
+
+  var holdsHtml=cup.holds.map(function(hold){
+    var puljeKampeForPdf = hold.puljeKampe || [];
+    var totalKampMaxPdf = puljeKampeForPdf.length * 2 * (cup.kampMin || 20);
+    function minTextFor(pid){
+      var totalMin = puljeKampeForPdf.reduce(function(s,k){ return s + ((k.minutes||{})[pid] || 0); }, 0);
+      if(!totalMin) return '<span style="color:#94A3B8;">–</span>';
+      var pct = totalKampMaxPdf>0 ? Math.round(totalMin/totalKampMaxPdf*100) : 0;
+      return '<strong>'+totalMin+' min</strong>'+(totalKampMaxPdf>0?' <span style="color:#5A7A9F;font-size:9px;">('+pct+'%)</span>':'');
+    }
+    var playerRows=hold.players.map(function(pid){
+      var p=players.find(function(x){return x.id===pid;});
+      if(!p) return '';
+      var posArr=Array.isArray(p.pos)?p.pos:(p.pos?[p.pos]:[]);
+      var pTeams=Array.isArray(p.team)?p.team.join(', '):(p.team||'');
+      var totalMin=puljeKampeForPdf.reduce(function(s,k){return s+((k.minutes||{})[pid]||0);},0);
+      var totalGoals=puljeKampeForPdf.reduce(function(s,k){return s+((k.goals||{})[pid]||0);},0);
+      var pct=totalKampMaxPdf>0?Math.round(totalMin/totalKampMaxPdf*100):0;
+      var ageStr=p.dob?(function(){var _t=new Date(),_b=new Date(p.dob),_a=_t.getFullYear()-_b.getFullYear();if(_t.getMonth()<_b.getMonth()||(_t.getMonth()===_b.getMonth()&&_t.getDate()<_b.getDate()))_a--;return _a+' år · '+new Date(p.dob).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});}()):(p.age?p.age+' år':'–');
+      return '<tr>'+
+        '<td style="padding:4px 10px;font-weight:600;">'+(p.jersey?'<strong>#'+p.jersey+'</strong> ':'')+p.name+'</td>'+
+        '<td style="padding:4px 10px;font-size:10px;color:#5A7A9F;">'+pTeams+'</td>'+
+        '<td style="padding:4px 10px;font-size:10px;color:#5A7A9F;">'+ageStr+'</td>'+
+        '<td style="padding:4px 10px;font-size:10px;">'+posArr.map(function(px){return POS_LABELS[px]||px;}).join(' / ')+'</td>'+
+        '<td style="padding:4px 10px;text-align:right;">'+(totalMin>0?'<strong>'+totalMin+' min</strong> <span style="color:#5A7A9F;font-size:9px;">('+pct+'%)</span>':'<span style="color:#94A3B8;">–</span>')+'</td>'+
+        '<td style="padding:4px 10px;text-align:center;font-weight:700;color:#16A34A;">'+(totalGoals>0?totalGoals+' ⚽':'–')+'</td>'+
+      '</tr>';
+    }).join('');
+
+    var loaneeRows=(hold.loanees||[]).map(function(l){
+      var loanAge=''; if(l.dob){var _t=new Date(),_b=new Date(l.dob),_a=_t.getFullYear()-_b.getFullYear();if(_t.getMonth()<_b.getMonth()||(_t.getMonth()===_b.getMonth()&&_t.getDate()<_b.getDate()))_a--;loanAge=_a+' år · '+new Date(l.dob).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});}else{loanAge='–';}
+      var lPos=((hold.playerPositions||{})[l.id])||[];
+      var lPosStr=lPos.filter(Boolean).map(function(pos){return POS_LABELS[pos]||pos;}).join(' / ')||'–';
+      var lMin=puljeKampeForPdf.reduce(function(s,k){return s+((k.minutes||{})[l.id]||0);},0);
+      var lGoals=puljeKampeForPdf.reduce(function(s,k){return s+((k.goals||{})[l.id]||0);},0);
+      var lPct=totalKampMaxPdf>0?Math.round(lMin/totalKampMaxPdf*100):0;
+      return '<tr style="background:#EBF2FB;">'+
+        '<td style="padding:4px 10px;font-weight:600;color:#1A6EC0;">'+l.name+' <span style="font-size:9px;font-weight:700;background:#1A6EC0;color:#fff;padding:1px 5px;border-radius:3px;">LÅN</span></td>'+
+        '<td style="padding:4px 10px;font-size:10px;">'+(l.team||'–')+'</td>'+
+        '<td style="padding:4px 10px;font-size:10px;">'+loanAge+'</td>'+
+        '<td style="padding:4px 10px;font-size:10px;">'+lPosStr+'</td>'+
+        '<td style="padding:4px 10px;text-align:right;">'+(lMin>0?'<strong>'+lMin+' min</strong> <span style="color:#5A7A9F;font-size:9px;">('+lPct+'%)</span>':'<span style="color:#94A3B8;">–</span>')+'</td>'+
+        '<td style="padding:4px 10px;text-align:center;font-weight:700;color:#16A34A;">'+(lGoals>0?lGoals+' ⚽':'–')+'</td>'+
+      '</tr>';
+    }).join('');
+
+    // Kampresultater tabel
+    var kampResultRows=puljeKampeForPdf.map(function(k,ki){
+      var hasRes=k.resH!==''&&k.resA!=='',resText=hasRes?k.resH+'-'+k.resA:'–';
+      var fcs2=parseInt(k.resH),opp2=parseInt(k.resA);
+      var resBg2=!hasRes?'#F1F5F9':fcs2>opp2?'#DCFCE7':fcs2===opp2?'#FEF9C3':'#FEE2E2';
+      var resColor2=!hasRes?'#64748B':fcs2>opp2?'#16A34A':fcs2===opp2?'#854D0E':'#dc2626';
+      var d=k.date?new Date(k.date).toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'}):'';
+      var allPdf2=(hold.players||[]).map(function(id){var p=players.find(function(x){return x.id===id;});return p?{id:p.id,name:p.name}:null;}).filter(Boolean).concat((hold.loanees||[]).map(function(l){return {id:l.id,name:l.name};}));
+      var goals2=Object.keys(k.goals||{}).filter(function(pid){return k.goals[pid]>0;}).map(function(pid){var pl=allPdf2.find(function(x){return x.id===pid;});return (pl?pl.name:'?')+(k.goals[pid]>1?' ×'+k.goals[pid]:'');}).join(', ');
+      return '<tr style="background:'+(ki%2===0?'#fff':'#F8FAFC')+'">'+
+        '<td style="padding:4px 10px;font-size:11px;font-weight:700;">'+(ki+1)+'. vs. '+k.opponent+'</td>'+
+        '<td style="padding:4px 10px;font-size:10px;color:#64748B;">'+d+(k.time?' · '+k.time:'')+'</td>'+
+        '<td style="padding:4px 10px;text-align:center;"><span style="font-weight:700;padding:2px 8px;border-radius:5px;background:'+resBg2+';color:'+resColor2+';">'+resText+'</span></td>'+
+        '<td style="padding:4px 10px;font-size:10px;color:#16A34A;">'+(goals2?'⚽ '+goals2:'–')+'</td>'+
+      '</tr>';
+    }).join('');
+    var kampResultHtml=puljeKampeForPdf.length?'<div style="margin-top:5mm;"><div style="font-size:10px;font-weight:700;color:#0A2342;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">📋 Kampe & resultater</div><table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;"><thead><tr style="background:#0A2342;"><th style="padding:4px 10px;text-align:left;font-size:9px;color:#F5C400;text-transform:uppercase;">Kamp</th><th style="padding:4px 10px;font-size:9px;color:#F5C400;text-transform:uppercase;">Dato</th><th style="padding:4px 10px;text-align:center;font-size:9px;color:#F5C400;text-transform:uppercase;">Resultat</th><th style="padding:4px 10px;font-size:9px;color:#F5C400;text-transform:uppercase;">Målscorere</th></tr></thead><tbody>'+kampResultRows+'</tbody></table></div>':'';
+
+    var total=hold.players.length+(hold.loanees||[]).length;
+
+    return '<div style="margin-bottom:8mm;">'+
+      '<div style="background:#0A2342;color:#F5C400;padding:5px 10px;border-radius:6px 6px 0 0;font-size:11px;font-weight:700;display:flex;justify-content:space-between;">'+
+        '<span>⚽ '+hold.name+'</span>'+
+        '<span>'+total+' spillere</span>'+
+      '</div>'+
+      '<table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-top:none;">'+
+        '<thead><tr style="background:#F1F5F9;">'+
+          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.07em;">Spiller</th>'+
+          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;">Hold</th>'+
+          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;">Alder</th>'+
+          '<th style="padding:4px 10px;text-align:left;font-size:9px;text-transform:uppercase;">Position</th>'+
+          '<th style="padding:4px 10px;text-align:right;font-size:9px;text-transform:uppercase;">⏱️ Spilletid</th>'+
+          '<th style="padding:4px 10px;text-align:center;font-size:9px;text-transform:uppercase;">⚽ Mål</th>'+
+        '</tr></thead>'+
+        '<tbody>'+playerRows+loaneeRows+'</tbody>'+
+      '</table>'+
+      kampResultHtml+
+    '</div>';
+  }).join('');
+
+  var totalAll=cup.holds.reduce(function(a,h){return a+h.players.length+(h.loanees||[]).length;},0);
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<style>@page{size:A4 portrait;margin:12mm 14mm;}'+
+    '@import url(\'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap\');'+
+    '*{box-sizing:border-box;margin:0;padding:0;}'+
+    'body{font-family:\'DM Sans\',sans-serif;color:#0A2342;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'+
+    'tbody tr:nth-child(even):not([style*="background:#EBF2FB"]){background:#F8FAFC;}'+
+    '</style></head><body>';
+
+  html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:4mm;border-bottom:3px solid #F5C400;margin-bottom:5mm;">'+
+    '<div>'+
+      '<div style="font-size:20px;font-weight:700;margin-bottom:2px;">'+cup.name+'</div>'+
+      '<div style="font-size:10px;color:#5A7A9F;">'+
+        (dateStr?'📅 '+dateStr+'  ':'')+
+        (cup.location?'📍 '+cup.location:'')+'</div>'+
+      '<div style="margin-top:3mm;display:flex;gap:8px;">'+
+        '<span style="background:#DBEAFE;color:#1A6EC0;font-size:9px;font-weight:700;padding:2px 10px;border-radius:20px;">'+cup.holds.length+' hold</span>'+
+        '<span style="background:#DCFCE7;color:#16A34A;font-size:9px;font-weight:700;padding:2px 10px;border-radius:20px;">'+totalAll+' spillere i alt</span>'+
+      '</div>'+
+    '</div>'+
+    '<div style="text-align:right;font-size:9px;color:#94A3B8;">FC Skanderborg · Pige talent<br>'+new Date().toLocaleDateString('da-DK')+'</div>'+
+  '</div>';
+
+  html+=holdsHtml;
+  html+='<div style="margin-top:5mm;border-top:1px solid #E2E8F0;padding-top:3mm;display:flex;justify-content:space-between;font-size:8px;color:#94A3B8;">'+
+    '<span>FC Skanderborg · Pige talent</span>'+
+    '<span>'+cup.name+'</span>'+
+  '</div>';
+  html+='</div>
+<!-- Opret ny klub overlay -->
+<div id="opretKlubOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding-top:40px;">
+  <div style="background:#fff;margin:0 16px 40px;border-radius:16px;overflow:hidden;max-width:480px;margin-left:auto;margin-right:auto;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">⚽ Opret ny klub</div>
+      <button onclick="document.getElementById('opretKlubOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Opret din klubs eget spillerstyringsystem. Du bliver automatisk admin.</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klubnavn *</label>
+      <input id="opret-klub-navn" type="text" placeholder="F.eks. FC Eksempel" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID (kort unikt navn) *</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <input id="opret-klub-id" type="text" placeholder="feks" maxlength="10" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretKlubIdCheck()">
+        <span id="opret-id-status" style="font-size:18px;width:24px;flex-shrink:0;"></span>
+      </div>
+      <div id="opret-id-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Kun bogstaver og tal, maks 10 tegn</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="opret-admin-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
+      <input id="opret-admin-user" type="text" placeholder="Dit unikke brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
+      <input id="opret-admin-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;">
+      
+      <div id="opret-klub-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitOpretKlub()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">✅ Opret klub og log ind</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kontakt admin overlay -->
+<div id="kontaktOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding-top:40px;">
+  <div style="background:#fff;margin:0 16px 40px;border-radius:16px;overflow:hidden;max-width:480px;margin-left:auto;margin-right:auto;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">✉️ Kontakt administrator</div>
+      <button onclick="document.getElementById('kontaktOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Har du spørgsmål eller brug for hjælp? Skriv en besked til administratoren.</div>
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="kontakt-navn" type="text" placeholder="Dit navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Email *</label>
+      <input id="kontakt-email" type="email" placeholder="din@email.dk" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Din klub (valgfrit)</label>
+      <input id="kontakt-klub" type="text" placeholder="Klubnavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+      
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Besked *</label>
+      <textarea id="kontakt-besked" placeholder="Skriv din besked her..." rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;"></textarea>
+      
+      <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
+    </div>
+  </div>
+</div>
+</body></html>';
+  openPdfWindow(html);
+}
 </body>
