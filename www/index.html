@@ -709,7 +709,8 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 </head>
 <body>
 <script>
-// NAS-version
+// Denne variabel sættes KUN i iOS-appen (www/index.html) — aldrig på NAS
+window.IS_NATIVE_APP = true;
 </script>
 
 
@@ -2609,11 +2610,29 @@ function statVal(v){return v||0;}
 
 // ── Open print window ─────────────────────────────────────────────────────────
 function openPdfWindow(html){
-  const win=window.open('','_blank','width=960,height=750');
-  if(!win){toast('⚠️ Tillad popups i din browser for at åbne PDF');return;}
+  if(isCapacitorApp()){
+    // iOS Capacitor: åbn i modal overlay i stedet for popup
+    var overlay = document.getElementById('pdf-preview-overlay');
+    if(!overlay){
+      overlay = document.createElement('div');
+      overlay.id = 'pdf-preview-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;overflow:auto;';
+      overlay.innerHTML = '<div style="position:sticky;top:0;background:#0A2342;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:1;">' +
+        '<span style="font-weight:700;font-size:14px;">📄 Forhåndsvisning</span>' +
+        '<button onclick="document.getElementById(\'pdf-preview-overlay\').style.display=\'none\'" style="background:#F5C400;color:#0A2342;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;">✕ Luk</button>' +
+        '</div><div id="pdf-preview-content" style="padding:16px;"></div>';
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = '';
+    document.getElementById('pdf-preview-content').innerHTML = html;
+    return;
+  }
+  // Web: åbn i nyt vindue
+  const win = window.open('', '_blank', 'width=960,height=750');
+  if(!win){ toast('⚠️ Tillad popups i din browser for at åbne PDF'); return; }
   win.document.write(html);
   win.document.close();
-  win.onload=function(){ setTimeout(function(){ win.focus(); win.print(); },500); };
+  win.onload = function(){ setTimeout(function(){ win.focus(); win.print(); }, 500); };
 }
 
 // ── Single player PDF ─────────────────────────────────────────────────────────
