@@ -709,8 +709,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 </head>
 <body>
 <script>
-// Denne variabel sættes KUN i iOS-appen (www/index.html) — aldrig på NAS
-window.IS_NATIVE_APP = true;
+// NAS-version
 </script>
 
 
@@ -5328,7 +5327,8 @@ function exportCupGuestPdf(cupId){
     '<div class="section-title">👥 Stab</div>'+staffHtml+
     '<div class="section-title">📋 Puljekampe</div>'+holdsHtml+
   '</div></body></html>';
-// ── Øvelser ───────────────────────────────────────────────────────────────────
+  openPdfWindow(html);
+}
 
 // ── Persistent event delegation for cup ──────────────────────────────────────
 document.addEventListener('click', function(e){
@@ -8372,8 +8372,6 @@ function docsDelete(id){
   docs=docs.filter(function(d){return d.id!==id;}); saveDocs(); renderDocs(); toast('🗑️ Dokument slettet');
 }
 
-
-}
 </script>
 
 
