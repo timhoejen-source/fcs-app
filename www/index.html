@@ -736,6 +736,9 @@ window.IS_NATIVE_APP = true;
       <button id="opret-klub-btn" onclick="openOpretKlub()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;display:none;">⚽ Opret ny klub</button>
       <button onclick="openKontakt()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">✉️ Kontakt admin</button>
     </div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button id="opret-bruger-btn" onclick="openOpretBruger()" style="width:100%;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;display:none;">👤 Opret bruger på eksisterende klub</button>
+    </div>
   </div>
 </div>
 
@@ -1762,9 +1765,11 @@ function applyRole(){
   // Klub opsætning — kun i iOS Capacitor app
   var sbKlubSetup = document.getElementById('sb-klub-setup');
   if(sbKlubSetup) sbKlubSetup.style.display = isCapacitorApp() ? '' : 'none';
-  // Opret ny klub knap — kun i iOS
+  // Opret ny klub + opret bruger knapper — kun i iOS
   var opretBtn = document.getElementById('opret-klub-btn');
   if(opretBtn) opretBtn.style.display = isCapacitorApp() ? '' : 'none';
+  var opretBrugerBtn = document.getElementById('opret-bruger-btn');
+  if(opretBrugerBtn) opretBrugerBtn.style.display = isCapacitorApp() ? '' : 'none';
 
   // Kilde-toggle i Stilling — kun admin (synlighed sættes, indhold styres af stillingApplyServerDefault)
   var kildeToggle = document.getElementById('stilling-kilde-toggle');
@@ -5900,6 +5905,69 @@ function authHeaders(extra){
 
 const REGISTER_URL = BASE_URL + 'register.php';
 
+function openOpretBruger(){
+  document.getElementById('opretBrugerOverlay').style.display = '';
+  document.getElementById('opret-bruger-err').style.display = 'none';
+  document.getElementById('opret-bruger-klub-status').textContent = '';
+  document.getElementById('opret-bruger-klub-info').textContent = 'Indtast klub-ID fra din klub';
+  document.getElementById('opret-bruger-klub-info').style.color = '#9CA3AF';
+}
+
+var _opretBrugerTimer = null;
+function opretBrugerKlubCheck(){
+  var el = document.getElementById('opret-bruger-klub-id');
+  var status = document.getElementById('opret-bruger-klub-status');
+  var info = document.getElementById('opret-bruger-klub-info');
+  var val = el.value.toLowerCase().replace(/[^a-z0-9]/g,'');
+  el.value = val;
+  if(val.length < 2){ status.textContent=''; info.textContent='Indtast klub-ID'; return; }
+  status.textContent='⏳';
+  clearTimeout(_opretBrugerTimer);
+  _opretBrugerTimer = setTimeout(function(){
+    fetch(REGISTER_URL+'?action=check_id',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id: val})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(!d.available){
+        status.textContent='✅';
+        info.textContent = 'Klub "'+val+'" fundet';
+        info.style.color = '#16A34A';
+      } else {
+        status.textContent='❌';
+        info.textContent = 'Klub "'+val+'" findes ikke';
+        info.style.color = '#dc2626';
+      }
+    }).catch(function(){ status.textContent=''; });
+  }, 500);
+}
+
+async function submitOpretBruger(){
+  var err = document.getElementById('opret-bruger-err');
+  err.style.display = 'none';
+  var payload = {
+    action:    'opret_bruger',
+    klub_id:   document.getElementById('opret-bruger-klub-id').value.trim(),
+    navn:      document.getElementById('opret-bruger-navn').value.trim(),
+    username:  document.getElementById('opret-bruger-username').value.trim(),
+    password:  document.getElementById('opret-bruger-pw').value,
+  };
+  if(!payload.klub_id||!payload.navn||!payload.username||!payload.password){
+    err.textContent='Alle felter skal udfyldes'; err.style.display=''; return;
+  }
+  if(payload.password.length < 6){
+    err.textContent='Adgangskode skal være mindst 6 tegn'; err.style.display=''; return;
+  }
+  try{
+    var res = await fetch(REGISTER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var data = await res.json();
+    if(!data.ok){ err.textContent=data.error||'Fejl'; err.style.display=''; return; }
+    document.getElementById('opretBrugerOverlay').style.display='none';
+    toast('✅ Anmodning sendt — vent på godkendelse fra din klubs admin');
+  }catch(e){
+    err.textContent='Netværksfejl: '+e.message; err.style.display='';
+  }
+}
+
 function openOpretKlub(){
   document.getElementById('opretKlubOverlay').style.display = '';
   document.getElementById('opret-klub-err').style.display = 'none';
@@ -6239,7 +6307,16 @@ function applyWhenReady(){ klubSetupApply(); }
 
 (function(){
   var savedRole = localStorage.getItem('fcs-auth');
+  var savedToken = localStorage.getItem('fcs-token');
   var validRoles = ['admin','viewer','player','trainer','time-reporter'];
+
+  // På iOS: hvis der er gemt auth men INGEN token, ryd auth (session er ugyldig)
+  if(savedRole && isCapacitorApp() && !savedToken){
+    localStorage.removeItem('fcs-auth');
+    localStorage.removeItem('fcs-user');
+    savedRole = null;
+  }
+
   if(savedRole && validRoles.indexOf(savedRole) !== -1){
     currentRole = savedRole;
     document.getElementById('loginOverlay').style.display = 'none';
@@ -6247,16 +6324,12 @@ function applyWhenReady(){ klubSetupApply(); }
     var lastTab = localStorage.getItem('fcs-active-tab') || 'spillere';
     try{ switchTab(lastTab); }catch(e){}
     applyRole();
-    // Hent data — token sendes automatisk via authHeaders()
     setTimeout(function(){ loadFromServer(); }, 300);
   } else {
-    // Ikke logget ind
     if(isCapacitorApp()){
-      // iOS-app — kør klub-setup flow
       document.getElementById('loginOverlay').style.display = 'none';
       klubSetupApply();
     } else {
-      // Web — vis login med det samme
       document.getElementById('loginOverlay').style.display = 'flex';
       renderTeams(); renderSelects(); render();
     }
@@ -8803,4 +8876,37 @@ function exportCupPdf(cupId){
       <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
         openPdfWindow(html);
 }
+
+<!-- Opret bruger overlay -->
+<div id="opretBrugerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding-top:40px;">
+  <div style="background:#fff;margin:0 16px 40px;border-radius:16px;overflow:hidden;max-width:480px;margin-left:auto;margin-right:auto;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">👤 Opret bruger</div>
+      <button onclick="document.getElementById('opretBrugerOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Opret en bruger på en eksisterende klub. Admin skal godkende din anmodning før du kan logge ind.</div>
+
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID *</label>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <input id="opret-bruger-klub-id" type="text" placeholder="F.eks. fcs" style="flex:1;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretBrugerKlubCheck()">
+        <span id="opret-bruger-klub-status" style="font-size:18px;width:24px;flex-shrink:0;line-height:40px;"></span>
+      </div>
+      <div id="opret-bruger-klub-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Indtast klub-ID fra din klub</div>
+
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="opret-bruger-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
+      <input id="opret-bruger-username" type="text" placeholder="Vælg et unikt brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;">
+
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
+      <input id="opret-bruger-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;">
+
+      <div id="opret-bruger-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitOpretBruger()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send anmodning</button>
+    </div>
+  </div>
+</div>
+
 </body>
