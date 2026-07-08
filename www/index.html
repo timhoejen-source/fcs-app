@@ -4605,12 +4605,14 @@ async function loadFromServer(){
     if(Array.isArray(payload.exerciseFolders)) exerciseFolders=payload.exerciseFolders;
     if(payload.boardLineups) window._boardLineups=payload.boardLineups;
     if(payload.appSettings)  window._appSettings=payload.appSettings;
-    // Hent stilling-billeder fra server (alle brugere)
+    window._stillingBilleder = {}; // Billeder hentes separat hvis stilling-img.php eksisterer
     try{
       var imgRes = await fetch(STILLING_IMG_URL, {credentials:'include'});
-      var imgData = await imgRes.json();
-      if(imgData.ok) window._stillingBilleder = imgData.billeder || {};
-    }catch(e){ window._stillingBilleder = {}; }
+      if(imgRes.ok){
+        var imgData = await imgRes.json();
+        if(imgData && imgData.ok) window._stillingBilleder = imgData.billeder || {};
+      }
+    }catch(e){ /* stilling-img.php mangler eller fejler — ignorer */ }
     // Opdater UI — applyRole SKAL køre FØR stillingApplyServerDefault
     renderTeams(); renderSelects(); render(); renderKampe(); populateExportSelectors();
     applyRole();
@@ -8575,10 +8577,7 @@ function docsDelete(id){
 </div>
 </body></html>';
 
-  var w=window.open('','_blank');
-  w.document.write(html);
-  w.document.close();
-  w.print();
+  openPdfWindow(html);
 }
 
 function exportCupPdf(cupId){
