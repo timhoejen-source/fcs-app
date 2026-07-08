@@ -733,7 +733,7 @@ window.IS_NATIVE_APP = true;
     <button class="login-btn" onclick="doGuestLogin()" style="margin-top:8px;background:var(--g100);color:var(--text-mid);border:1.5px solid var(--g200);">👁️ Fortsæt som gæst</button>
     <div class="login-err" id="login-err"></div>
     <div style="margin-top:16px;border-top:1px solid var(--g100);padding-top:12px;display:flex;gap:8px;">
-      <button onclick="openOpretKlub()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">⚽ Opret ny klub</button>
+      <button id="opret-klub-btn" onclick="openOpretKlub()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;display:none;">⚽ Opret ny klub</button>
       <button onclick="openKontakt()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">✉️ Kontakt admin</button>
     </div>
   </div>
@@ -1601,18 +1601,26 @@ function onLoginSuccess(){
 
 async function doLogout(){
   if(!confirm('Er du sikker på at du vil logge ud?')) return;
-  fetch(AUTH_URL+'?action=logout',{method:'POST',credentials:'include'}).catch(function(){});
+  var token = localStorage.getItem('fcs-token');
+  fetch(AUTH_URL+'?action=logout', {
+    method:'POST', credentials:'include',
+    headers: authHeaders()
+  }).catch(function(){});
   localStorage.removeItem('fcs-auth');
   localStorage.removeItem('fcs-user');
   localStorage.removeItem('fcs-name');
   localStorage.removeItem('fcs-active-tab');
+  localStorage.removeItem('fcs-token');
   currentRole = '';
   players=[]; matches=[]; teams=[]; trainings=[]; cups=[];
-  // Vis login-overlay direkte — reload ikke nødvendigt
-  document.getElementById('loginOverlay').style.display = 'flex';
-  render(); renderKampe();
-  // I Capacitor: kør klub-setup flow igen
-  if(isCapacitorApp()) applyWhenReady();
+  if(isCapacitorApp()){
+    // iOS — vis login-boks direkte (klub-design er allerede sat)
+    document.getElementById('loginOverlay').style.display = 'flex';
+    render();
+  } else {
+    document.getElementById('loginOverlay').style.display = 'flex';
+    render(); renderKampe();
+  }
 }
 
 function applyRole(){
@@ -1754,6 +1762,9 @@ function applyRole(){
   // Klub opsætning — kun i iOS Capacitor app
   var sbKlubSetup = document.getElementById('sb-klub-setup');
   if(sbKlubSetup) sbKlubSetup.style.display = isCapacitorApp() ? '' : 'none';
+  // Opret ny klub knap — kun i iOS
+  var opretBtn = document.getElementById('opret-klub-btn');
+  if(opretBtn) opretBtn.style.display = isCapacitorApp() ? '' : 'none';
 
   // Kilde-toggle i Stilling — kun admin (synlighed sættes, indhold styres af stillingApplyServerDefault)
   var kildeToggle = document.getElementById('stilling-kilde-toggle');
@@ -4589,6 +4600,19 @@ async function loadFromServer(){
     if(!res.ok) throw new Error('HTTP '+res.status);
     var payload = await res.json();
     if(!payload.ok){
+      if(payload.error === 'Ikke logget ind'){
+        // Session udløbet eller token ugyldigt — vis login
+        localStorage.removeItem('fcs-auth');
+        localStorage.removeItem('fcs-token');
+        currentRole = '';
+        if(isCapacitorApp()){
+          klubSetupApply();
+        } else {
+          document.getElementById('loginOverlay').style.display = 'flex';
+        }
+        setSyncDot('err');
+        return;
+      }
       throw new Error(payload.error || 'Server fejl');
     }
     // Indlæs data
@@ -6099,6 +6123,13 @@ function klubSetupOpen(foerstgang){
   klubSetupPreview();
 }
 
+function klubSetupAnnuller(){
+  // "Ikke lige nu" — luk overlay og vis login i stedet
+  document.getElementById('klubSetupOverlay').style.display = 'none';
+  var loginOverlay = document.getElementById('loginOverlay');
+  if(loginOverlay) loginOverlay.style.display = 'flex';
+}
+
 function klubSetupPreview(){
   var navn    = (document.getElementById('klub-setup-navn')    ||{value:''}).value || 'Min Klub';
   var primary = (document.getElementById('klub-setup-primary') ||{value:'#4B5563'}).value || '#4B5563';
@@ -6208,7 +6239,7 @@ function applyWhenReady(){ klubSetupApply(); }
 
 (function(){
   var savedRole = localStorage.getItem('fcs-auth');
-  var validRoles = ['admin','viewer','player'];
+  var validRoles = ['admin','viewer','player','trainer','time-reporter'];
   if(savedRole && validRoles.indexOf(savedRole) !== -1){
     currentRole = savedRole;
     document.getElementById('loginOverlay').style.display = 'none';
@@ -6216,6 +6247,7 @@ function applyWhenReady(){ klubSetupApply(); }
     var lastTab = localStorage.getItem('fcs-active-tab') || 'spillere';
     try{ switchTab(lastTab); }catch(e){}
     applyRole();
+    // Hent data — token sendes automatisk via authHeaders()
     setTimeout(function(){ loadFromServer(); }, 300);
   } else {
     // Ikke logget ind
@@ -8455,7 +8487,7 @@ function docsDelete(id){
       </div>
 
       <button onclick="klubSetupGem()" id="klub-setup-gem-btn" style="width:100%;padding:14px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">💾 Gem klubopsætning</button>
-      <button onclick="document.getElementById(\'klubSetupOverlay\').style.display=\'none\'" id="klub-setup-cancel-btn" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Annuller</button>
+      <button onclick="document.getElementById(\'klubSetupOverlay\').style.display=\'none\'" id="klub-setup-cancel-btn" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Ikke lige nu</button>
       <button id="klub-setup-nulstil-btn" onclick="klubSetupNulstil()" style="display:none;width:100%;padding:10px;background:none;color:#EF4444;border:1px solid #FCA5A5;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;">🗑️ Nulstil til standard</button>
     </div>
   </div>
