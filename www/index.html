@@ -4587,7 +4587,9 @@ async function loadFromServer(){
     var res = await fetch(LOAD_URL+'?nc='+Date.now(), {credentials:'include'});
     if(!res.ok) throw new Error('HTTP '+res.status);
     var payload = await res.json();
-    if(payload.error) throw new Error(payload.error);
+    if(!payload.ok){
+      throw new Error(payload.error || 'Server fejl');
+    }
     // Indlæs data
     if(Array.isArray(payload.players)&&payload.players.length){
       players=payload.players.map(function(p){
@@ -8571,13 +8573,7 @@ function docsDelete(id){
       <textarea id="kontakt-besked" placeholder="Skriv din besked her..." rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;"></textarea>
       
       <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
-    </div>
-  </div>
-</div>
-</body></html>';
-
-  openPdfWindow(html);
+        openPdfWindow(html);
 }
 
 function exportCupPdf(cupId){
@@ -8764,11 +8760,6 @@ function exportCupPdf(cupId){
       <textarea id="kontakt-besked" placeholder="Skriv din besked her..." rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;"></textarea>
       
       <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
-    </div>
-  </div>
-</div>
-</body></html>';
-  openPdfWindow(html);
+        openPdfWindow(html);
 }
 </body>
