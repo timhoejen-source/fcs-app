@@ -1540,7 +1540,8 @@ async function doLogin(){
     currentRole=data.role;
     localStorage.setItem('fcs-auth', data.role);
     localStorage.setItem('fcs-user', data.username);
-  // [localStorage write removed]
+    // Gem token til iOS (cookie virker ikke altid i Capacitor)
+    if(data.token) localStorage.setItem('fcs-token', data.token);
     document.getElementById('loginOverlay').style.display='none';
     applyRole();
     var roleNames={admin:'Velkommen, '+data.name,trainer:'Velkommen, '+data.name,viewer:'Velkommen til FCS Pige talent',player:'Velkommen spiller'};
@@ -4584,7 +4585,7 @@ async function dbuFetchAll(){
 async function loadFromServer(){
   setSyncDot('busy');
   try{
-    var res = await fetch(LOAD_URL+'?nc='+Date.now(), {credentials:'include'});
+    var res = await fetch(LOAD_URL+'?nc='+Date.now(), {credentials:'include', headers:authHeaders()});
     if(!res.ok) throw new Error('HTTP '+res.status);
     var payload = await res.json();
     if(!payload.ok){
@@ -4641,7 +4642,7 @@ async function saveToServer(silent){
     });
     var res=await fetch(SAVE_URL,{
       method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/json'},
+      headers:authHeaders(),
       body:payload
     });
     var data=await res.json();
@@ -5864,7 +5865,15 @@ function toggleCard(id){
   if(chev) chev.classList.toggle('open', open);
 }
 
-// ── Multi-tenant: Opret klub & Kontakt ───────────────────────────────────────
+// Auth headers — sender token til iOS hvor cookies ikke virker
+function authHeaders(extra){
+  var h = Object.assign({'Content-Type':'application/json'}, extra||{});
+  var token = localStorage.getItem('fcs-token');
+  if(token) h['X-Auth-Token'] = token;
+  return h;
+}
+
+
 const REGISTER_URL = BASE_URL + 'register.php';
 
 function openOpretKlub(){
