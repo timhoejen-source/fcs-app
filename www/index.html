@@ -6131,6 +6131,14 @@ function shadeColor(hex, percent){
 function klubSetupApply(){
   try{
     var raw = localStorage.getItem('fcs-klub-settings');
+    // DEBUG
+    if(window.IS_NATIVE_APP){
+      setTimeout(function(){
+        var lo = document.getElementById('loginOverlay');
+        var ko = document.getElementById('klubSetupOverlay');
+        alert('klubSetupApply:\nraw='+(raw?'JA':'INGEN')+'\nloginOverlay='+lo.style.display+'\nklubSetupOverlay='+ko.style.display);
+      }, 1500);
+    }
     if(raw){
       // Klub konfigureret — anvend branding og vis login
       klubBrandingApply(JSON.parse(raw));
@@ -6310,15 +6318,6 @@ function applyWhenReady(){ klubSetupApply(); }
   var savedToken = localStorage.getItem('fcs-token');
   var validRoles = ['admin','viewer','player','trainer','time-reporter'];
   var isNative = window.IS_NATIVE_APP === true;
-
-  // DEBUG - fjern efter test
-  if(isNative){
-    var klubSettings = localStorage.getItem('fcs-klub-settings');
-    var loginDisplay = document.getElementById('loginOverlay') ? document.getElementById('loginOverlay').style.display : 'IKKE FUNDET';
-    setTimeout(function(){
-      alert('DEBUG iOS:\nrole='+savedRole+'\ntoken='+(savedToken?'JA':'INGEN')+'\nisNative='+isNative+'\nklubSettings='+(klubSettings?'JA':'INGEN')+'\nloginDisplay='+loginDisplay);
-    }, 1000);
-  }
 
   if(savedRole && validRoles.indexOf(savedRole) !== -1){
     if(isCapacitorApp()){
