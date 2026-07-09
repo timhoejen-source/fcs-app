@@ -6310,14 +6310,41 @@ function applyWhenReady(){ klubSetupApply(); }
   var savedToken = localStorage.getItem('fcs-token');
   var validRoles = ['admin','viewer','player','trainer','time-reporter'];
 
-  // På iOS: hvis der er gemt auth men INGEN token, ryd auth (session er ugyldig)
-  if(savedRole && isCapacitorApp() && !savedToken){
-    localStorage.removeItem('fcs-auth');
-    localStorage.removeItem('fcs-user');
-    savedRole = null;
-  }
-
   if(savedRole && validRoles.indexOf(savedRole) !== -1){
+    if(isCapacitorApp()){
+      if(!savedToken){
+        // Ingen token — ryd og vis klub-setup
+        localStorage.removeItem('fcs-auth');
+        localStorage.removeItem('fcs-user');
+        document.getElementById('loginOverlay').style.display = 'none';
+        klubSetupApply();
+        return;
+      }
+      // Har token — verificer mod server FØR vi viser appen
+      // Vis loading i stedet for appen
+      document.getElementById('loginOverlay').style.display = 'none';
+      var lo = document.getElementById('loginOverlay');
+      // Brug en simpel loading-overlay
+      var loadDiv = document.createElement('div');
+      loadDiv.id = 'startup-loading';
+      loadDiv.style.cssText = 'position:fixed;inset:0;background:#0A2342;z-index:9990;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
+      loadDiv.innerHTML = '<div style="font-size:48px;">⚽</div><div style="color:#F5C400;font-size:16px;font-weight:700;">Henter data...</div>';
+      document.body.appendChild(loadDiv);
+
+      // Verificer token
+      currentRole = savedRole;
+      setTimeout(function(){
+        loadFromServer().then(function(){
+          var ld = document.getElementById('startup-loading');
+          if(ld) ld.remove();
+        }).catch(function(){
+          var ld = document.getElementById('startup-loading');
+          if(ld) ld.remove();
+        });
+      }, 300);
+      return;
+    }
+    // Web — vis direkte
     currentRole = savedRole;
     document.getElementById('loginOverlay').style.display = 'none';
     renderTeams(); renderSelects(); render(); populateExportSelectors();
