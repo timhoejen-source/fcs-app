@@ -6313,9 +6313,11 @@ function applyWhenReady(){ klubSetupApply(); }
 
   // DEBUG - fjern efter test
   if(isNative){
+    var klubSettings = localStorage.getItem('fcs-klub-settings');
+    var loginDisplay = document.getElementById('loginOverlay') ? document.getElementById('loginOverlay').style.display : 'IKKE FUNDET';
     setTimeout(function(){
-      alert('DEBUG iOS:\nrole='+savedRole+'\ntoken='+(savedToken?savedToken.substring(0,8)+'...':'INGEN')+'\nisNative='+isNative);
-    }, 500);
+      alert('DEBUG iOS:\nrole='+savedRole+'\ntoken='+(savedToken?'JA':'INGEN')+'\nisNative='+isNative+'\nklubSettings='+(klubSettings?'JA':'INGEN')+'\nloginDisplay='+loginDisplay);
+    }, 1000);
   }
 
   if(savedRole && validRoles.indexOf(savedRole) !== -1){
