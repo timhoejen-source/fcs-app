@@ -24,7 +24,7 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :CFBundleName Q-Fodboldstyring" ios/App/App/Info.plist
       - name: Set build number
         script: |
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 50" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 6" ios/App/App/Info.plist
       - name: Build iOS
         script: |
           xcode-project use-profiles

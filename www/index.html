@@ -6131,14 +6131,6 @@ function shadeColor(hex, percent){
 function klubSetupApply(){
   try{
     var raw = localStorage.getItem('fcs-klub-settings');
-    // DEBUG
-    if(window.IS_NATIVE_APP){
-      setTimeout(function(){
-        var lo = document.getElementById('loginOverlay');
-        var ko = document.getElementById('klubSetupOverlay');
-        alert('klubSetupApply:\nraw='+(raw?'JA':'INGEN')+'\nloginOverlay='+lo.style.display+'\nklubSetupOverlay='+ko.style.display);
-      }, 1500);
-    }
     if(raw){
       // Klub konfigureret — anvend branding og vis login
       klubBrandingApply(JSON.parse(raw));
