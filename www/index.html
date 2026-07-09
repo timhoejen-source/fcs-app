@@ -6309,6 +6309,14 @@ function applyWhenReady(){ klubSetupApply(); }
   var savedRole = localStorage.getItem('fcs-auth');
   var savedToken = localStorage.getItem('fcs-token');
   var validRoles = ['admin','viewer','player','trainer','time-reporter'];
+  var isNative = window.IS_NATIVE_APP === true;
+
+  // DEBUG - fjern efter test
+  if(isNative){
+    setTimeout(function(){
+      alert('DEBUG iOS:\nrole='+savedRole+'\ntoken='+(savedToken?savedToken.substring(0,8)+'...':'INGEN')+'\nisNative='+isNative);
+    }, 500);
+  }
 
   if(savedRole && validRoles.indexOf(savedRole) !== -1){
     if(isCapacitorApp()){
