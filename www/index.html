@@ -1529,7 +1529,7 @@ async function doLogin(){
   try{
     var res = await fetch(AUTH_URL+'?action=login',{
       method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/json'},
+      headers: authHeaders(),
       body:JSON.stringify({username:u, password:p})
     });
     var data = await res.json();
@@ -4534,29 +4534,17 @@ async function dbuFetchAll(){
     if(!d1.ok) throw new Error(d1.error||'Kampprogram fejl');
 
     var added=0, updated=0;
+    // Fjern alle eksisterende DBU-kampe (kampnr-mærkede) og erstat med nye
+    matches = matches.filter(function(m){ return !m.kampnr; });
     d1.kampe.forEach(function(k){
-      var existing = matches.find(function(m){ return m.kampnr && m.kampnr===k.kampnr; });
-      if(existing){
-        if(k.score && existing.score !== k.score){
-          existing.score=k.score;
-          existing.scoreH=k.scoreH; existing.scoreA=k.scoreA;
-          existing.resultHome=k.scoreH; existing.resultAway=k.scoreA;
-          updated++;
-        }
-        // Opdater dato/tid/sted hvis mangler
-        if(!existing.date && k.date) existing.date=k.date;
-        if(!existing.time && k.time) existing.time=k.time;
-        if(!existing.sted && k.sted) existing.sted=k.sted;
-      } else {
-        k.id = uid();
-        // Tildel hold baseret på pulje navn — matcher appens holdnavne
-        var rowLower = (k.dbuPool||'').toLowerCase();
-        if(rowLower.indexOf('u15') !== -1) k.hold = 'U15 liga 2';
-        else if(rowLower.indexOf('u14') !== -1) k.hold = 'U14 liga 2';
-        else k.hold = '';
-        matches.push(k);
-        added++;
-      }
+      k.id = uid();
+      // Tildel hold baseret på pulje navn
+      var rowLower = (k.dbuPool||'').toLowerCase();
+      if(rowLower.indexOf('u15') !== -1) k.hold = 'U15 liga 2';
+      else if(rowLower.indexOf('u14') !== -1) k.hold = 'U14 liga 2';
+      else k.hold = '';
+      matches.push(k);
+      added++;
     });
     matches.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
 
