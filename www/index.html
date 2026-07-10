@@ -730,7 +730,6 @@ window.IS_NATIVE_APP = true;
       <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="login-btn" onclick="doLogin()">Log ind</button>
-    <button class="login-btn" onclick="doGuestLogin()" style="margin-top:8px;background:var(--g100);color:var(--text-mid);border:1.5px solid var(--g200);">👁️ Fortsæt som gæst</button>
     <div class="login-err" id="login-err"></div>
     <div style="margin-top:16px;border-top:1px solid var(--g100);padding-top:12px;display:flex;gap:8px;">
       <button id="opret-klub-btn" onclick="openOpretKlub()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;display:none;">⚽ Opret ny klub</button>
@@ -1538,6 +1537,7 @@ async function doLogin(){
       if(err){ err.textContent=data.error||'Forkert brugernavn eller kodeord'; setTimeout(function(){err.textContent='';},3500); }
       document.getElementById('login-pass').value='';
       document.getElementById('login-pass').focus();
+      if(btn){ btn.disabled=false; btn.textContent='Log ind'; }
       return;
     }
     currentRole=data.role;
@@ -4776,7 +4776,7 @@ async function saveUserFromModal(orig, isNew){
   }catch(e){errEl.textContent='Serverfejl';}
 }
 
-async async function deleteUserConfirm(username){
+async function deleteUserConfirm(username){
   if(!confirm('Slet brugeren "'+username+'"?\n\nDette kan ikke fortrydes.')) return;
   try{
     var res = await fetch(AUTH_URL+'?action=delete_user',{
