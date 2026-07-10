@@ -1558,8 +1558,10 @@ async function doLogin(){
     setTimeout(function(){ loadFromServer(); }, 500);
   }catch(e){
     var err=document.getElementById('login-err');
-    if(err){ err.textContent='Serverfejl — prøv igen'; setTimeout(function(){err.textContent='';},3500); }
+    if(err){ err.textContent='Fejl: '+e.message; setTimeout(function(){err.textContent='';},5000); }
+    if(window.IS_NATIVE_APP) alert('Login fejl:\n'+e.message+'\nURL:'+AUTH_URL);
     console.error(e);
+    if(btn){ btn.disabled=false; btn.textContent='Log ind'; }
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='Log ind'; }
   }
