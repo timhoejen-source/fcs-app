@@ -24,7 +24,7 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :CFBundleName Q-Fodboldstyring" ios/App/App/Info.plist
       - name: Set build number
         script: |
-          BUILD_NUMBER=$(date +%Y%m%d%H)
+          BUILD_NUMBER=$(date +%Y%m%d%H%M)
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
           echo "Build number: $BUILD_NUMBER"
       - name: Build iOS
