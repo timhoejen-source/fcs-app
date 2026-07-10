@@ -6354,12 +6354,18 @@ function applyWhenReady(){ klubSetupApply(); }
     applyRole();
     setTimeout(function(){ loadFromServer(); }, 300);
   } else {
+    // Ikke logget ind — vis altid login
+    document.getElementById('loginOverlay').style.display = 'flex';
+    renderTeams(); renderSelects(); render();
+    // På iOS: anvend klub-branding hvis gemt
     if(isCapacitorApp()){
-      document.getElementById('loginOverlay').style.display = 'none';
-      klubSetupApply();
-    } else {
-      document.getElementById('loginOverlay').style.display = 'flex';
-      renderTeams(); renderSelects(); render();
+      var raw = localStorage.getItem('fcs-klub-settings');
+      if(raw){ try{ klubBrandingApply(JSON.parse(raw)); }catch(e){} }
+      // Vis opret-klub og opret-bruger knapper
+      var ob = document.getElementById('opret-klub-btn');
+      if(ob) ob.style.display = '';
+      var obb = document.getElementById('opret-bruger-btn');
+      if(obb) obb.style.display = '';
     }
   }
 })();
