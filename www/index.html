@@ -6220,6 +6220,25 @@ function renderExArchiveList(){
 }
 
 
+function toggleSidebar(){
+  var sb  = document.getElementById('sidebar');
+  var btn = document.getElementById('menuBtn');
+  var ov  = document.getElementById('sbOverlay');
+  if(!sb) return;
+  var isMob = window.innerWidth <= 700;
+  if(isMob){
+    var open = sb.classList.toggle('mobile-open');
+    if(ov)  ov.classList.toggle('active', open);
+    if(btn) btn.classList.toggle('open', open);
+  } else {
+    var collapsed = sb.classList.toggle('collapsed');
+    if(btn) btn.classList.toggle('open', !collapsed);
+  }
+}
+
+function toggleMobileSidebar(){ toggleSidebar(); }
+function toggleMobile(){ toggleSidebar(); }
+
 function klubSetupAnnuller(){
   document.getElementById('klubSetupOverlay').style.display = 'none';
   if(currentRole){
