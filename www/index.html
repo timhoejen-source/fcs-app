@@ -6190,6 +6190,36 @@ function klubSetupOpen(foerstgang){
   klubSetupPreview();
 }
 
+function renderExArchiveList(){
+  var el = document.getElementById('exarch-list');
+  if(!el) return;
+  var isAdmin = currentRole === 'admin';
+  var canEdit = ['admin','trainer'].includes(currentRole);
+  var q = ((document.getElementById('exarch-search')||{}).value||'').trim().toLowerCase();
+
+  var filtered = exerciseArchive.filter(function(a){
+    return !q || a.name.toLowerCase().indexOf(q) !== -1 || (a.desc||'').toLowerCase().indexOf(q) !== -1;
+  });
+
+  if(!filtered.length){
+    el.innerHTML = '<div style="font-size:11px;color:var(--text-soft);text-align:center;padding:20px 0;">'+(exerciseArchive.length && q ? 'Ingen match' : 'Arkivet er tomt — gem en øvelse fra en træning')+'</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(function(a){
+    var imgThumb = a.img ? '<img src="'+a.img+'" style="width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0;">' : '';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--g100);">'+
+      imgThumb+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+a.name+'</div>'+
+        '<div style="font-size:10px;color:var(--text-soft);">'+(a.min?a.min+' min':'')+'</div>'+
+      '</div>'+
+      (isAdmin?'<button data-delarch="'+a.id+'" style="background:none;border:1px solid #fecaca;color:#dc2626;border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer;">🗑️</button>':'')+
+    '</div>';
+  }).join('');
+}
+
+
 function klubSetupAnnuller(){
   document.getElementById('klubSetupOverlay').style.display = 'none';
   if(currentRole){
@@ -6309,6 +6339,7 @@ function klubSetupGem(){
     toast('✅ Klubopsætning gemt');
   }
 }
+
 </script>
 </body>
 </html>
