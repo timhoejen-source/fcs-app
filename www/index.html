@@ -6036,10 +6036,15 @@ async function submitOpretKlub(){
     var data = await res.json();
     if(!data.ok){ err.textContent=data.error||'Fejl'; err.style.display=''; return; }
     document.getElementById('opretKlubOverlay').style.display='none';
-    // Log automatisk ind
-    document.getElementById('login-user').value = payload.admin_brugernavn;
-    document.getElementById('login-pass').value = payload.admin_pw;
-    await doLogin();
+    toast('✅ Klub oprettet — fortsæt til at logge på');
+    // Udfyld login-felter automatisk
+    var loginUser = document.getElementById('login-user');
+    var loginPass = document.getElementById('login-pass');
+    if(loginUser) loginUser.value = payload.admin_username;
+    if(loginPass) loginPass.value = payload.admin_password;
+    // Vis login overlay
+    var lo = document.getElementById('loginOverlay');
+    if(lo) lo.style.display = 'flex';
   }catch(e){
     err.textContent='Netværksfejl: '+e.message; err.style.display='';
   }
