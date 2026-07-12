@@ -6021,14 +6021,14 @@ async function submitOpretKlub(){
   var err = document.getElementById('opret-klub-err');
   err.style.display = 'none';
   var payload = {
-    action:           'opret',
+    action:           'opret_klub',
     klub_navn:        document.getElementById('opret-klub-navn').value.trim(),
     klub_id:          document.getElementById('opret-klub-id').value.trim(),
     admin_navn:       document.getElementById('opret-admin-navn').value.trim(),
-    admin_brugernavn: document.getElementById('opret-admin-user').value.trim(),
-    admin_pw:         document.getElementById('opret-admin-pw').value,
+    admin_username:   document.getElementById('opret-admin-user').value.trim(),
+    admin_password:   document.getElementById('opret-admin-pw').value,
   };
-  if(!payload.klub_navn||!payload.klub_id||!payload.admin_navn||!payload.admin_brugernavn||!payload.admin_pw){
+  if(!payload.klub_navn||!payload.klub_id||!payload.admin_navn||!payload.admin_username||!payload.admin_password){
     err.textContent='Alle felter skal udfyldes'; err.style.display=''; return;
   }
   try{
