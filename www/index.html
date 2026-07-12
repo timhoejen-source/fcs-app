@@ -6220,6 +6220,42 @@ function renderExArchiveList(){
 }
 
 
+async function loadDocs(){
+  try{
+    var res = await fetch(BASE_URL+'docs.php', {credentials:'include', headers:authHeaders()});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var data = await res.json();
+    if(data.ok && data.docs){ docs = data.docs; }
+  }catch(e){ console.warn('loadDocs fejl:', e.message); }
+  renderDocs();
+}
+
+function renderDocs(){
+  var el = document.getElementById('docs-list');
+  if(!el) return;
+  if(!docs || !docs.length){
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-soft);font-size:12px;">Ingen dokumenter endnu</div>';
+    return;
+  }
+  var ce = ['admin','trainer'].includes(currentRole);
+  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">' +
+    docs.map(function(d){
+      var ext = d.type==='link' ? 'link' : (d.name.split('.').pop()||'').toLowerCase();
+      var icons = {pdf:'📄',docx:'📝',doc:'📝',pptx:'📊',xlsx:'📈',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',link:'🔗',mp4:'🎬'};
+      var icon = icons[ext] || '📁';
+      var href = d.type==='link' ? d.url : BASE_URL+'docs.php?download='+encodeURIComponent(d.filename||'');
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border:1.5px solid var(--g200);border-radius:10px;">'+
+        '<div style="font-size:20px;">'+icon+'</div>'+
+        '<div style="flex:1;min-width:0;">'+
+          '<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+d.name+'</div>'+
+          (d.desc?'<div style="font-size:10px;color:var(--text-soft);">'+d.desc+'</div>':'')+
+        '</div>'+
+        '<a href="'+href+'" '+(d.type==='link'?'target="_blank"':'')+' style="background:var(--g100);border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none;color:var(--navy);">'+(d.type==='link'?'🔗 Åbn':'⬇️ Hent')+'</a>'+
+        (ce?'<button data-docsdel="'+d.id+'" style="background:none;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;">🗑️</button>':'')+
+      '</div>';
+    }).join('') + '</div>';
+}
+
 function toggleSidebar(){
   var sb  = document.getElementById('sidebar');
   var btn = document.getElementById('menuBtn');
