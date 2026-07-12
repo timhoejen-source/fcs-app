@@ -732,8 +732,11 @@ window.IS_NATIVE_APP = true;
     <button class="login-btn" onclick="doLogin()">Log ind</button>
     <div class="login-err" id="login-err"></div>
     <div style="margin-top:16px;border-top:1px solid var(--g100);padding-top:12px;display:flex;gap:8px;">
-      <button id="opret-klub-btn" onclick="openOpretKlub()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;display:none;">⚽ Opret ny klub</button>
-      <button onclick="openKontakt()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">✉️ Kontakt admin</button>
+      <button id="opret-klub-btn" onclick="openOpretKlub()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">⚽ Opret ny klub</button>
+      <button onclick="openKontakt()" style="flex:1;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">✉️ Kontakt</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button id="opret-bruger-btn" onclick="openOpretBruger()" style="width:100%;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;">👤 Opret bruger på eksisterende klub</button>
     </div>
     <div style="display:flex;gap:8px;margin-top:6px;">
       <button id="opret-bruger-btn" onclick="openOpretBruger()" style="width:100%;padding:8px;background:none;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700;color:var(--text-soft);cursor:pointer;font-family:inherit;display:none;">👤 Opret bruger på eksisterende klub</button>
@@ -794,6 +797,7 @@ window.IS_NATIVE_APP = true;
         <span class="sb-section-chev">▾</span>
       </div>
       <div class="sb-section-body" id="sb-users-body">
+        <div id="admin-notifications" style="margin-bottom:12px;"></div>
         <div id="user-list" style="margin-bottom:8px;"></div>
         <button onclick="openUserModal()" class="btn-primary" style="width:100%;margin-top:0;padding:8px;font-size:12px;">+ Tilføj bruger</button>
       </div>
@@ -4685,6 +4689,7 @@ async function saveToServer(silent){
 
 // ── Brugerstyring ─────────────────────────────────────────────────────────────
 async function loadUserList(){
+  loadNotifications();
   fetch(AUTH_URL+'?action=list_users', {credentials:'include', headers:authHeaders()})
   .then(function(r){ return r.json(); })
   .then(function(data){
@@ -4695,13 +4700,21 @@ async function loadUserList(){
     var currentUser = localStorage.getItem('fcs-user');
     el.innerHTML = data.users.map(function(u){
       var isSelf = u.username === currentUser;
-      return '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--g100);">'+
-        '<div style="flex:1;">'+
-          '<div style="font-size:12px;font-weight:700;">'+u.name+'</div>'+
-          '<div style="font-size:10px;color:var(--text-soft);">'+u.username+' · '+(roleLabels[u.role]||u.role)+'</div>'+
+      var roleOpts = ['admin','trainer','viewer','player','time-reporter'].map(function(r){
+        return '<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+roleLabels[r]+'</option>';
+      }).join('');
+      return '<div style="padding:8px 0;border-bottom:1px solid var(--g100);">'+
+        '<div style="display:flex;align-items:center;gap:6px;">'+
+          '<div style="flex:1;">'+
+            '<div style="font-size:12px;font-weight:700;">'+u.name+'</div>'+
+            '<div style="font-size:10px;color:var(--text-soft);">'+u.username+'</div>'+
+          '</div>'+
+          (isSelf ? '<span style="font-size:10px;color:var(--text-soft);">(dig)</span>' :
+            '<button data-deluser="'+u.username+'" style="background:none;border:1px solid #fecaca;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;color:#dc2626;">🗑️</button>')+
         '</div>'+
-        (isSelf ? '<span style="font-size:10px;color:var(--text-soft);">(dig selv)</span>' :
-          '<button data-deluser="'+u.username+'" style="background:none;border:1px solid #fecaca;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;color:#dc2626;">🗑️ Slet</button>')+
+        (!isSelf ? '<div style="margin-top:5px;display:flex;align-items:center;gap:5px;">'+
+          '<select onchange="changeUserRole(\''+u.username+'\',this.value)" style="flex:1;font-size:10px;padding:3px;border:1px solid var(--g200);border-radius:5px;font-family:inherit;">'+roleOpts+'</select>'+
+        '</div>' : '')+
       '</div>';
     }).join('');
   }).catch(function(e){ console.error(e); });
@@ -6219,6 +6232,51 @@ function renderExArchiveList(){
   }).join('');
 }
 
+
+async function loadNotifications(){
+  var el = document.getElementById('admin-notifications');
+  if(!el) return;
+  try{
+    var res = await fetch(AUTH_URL+'?action=notifications', {credentials:'include', headers:authHeaders()});
+    var data = await res.json();
+    if(!data.ok || !data.notifications || !data.notifications.length){
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = '<div style="background:#FEF3C7;border:1.5px solid #FDE68A;border-radius:8px;padding:10px;margin-bottom:8px;">' +
+      '<div style="font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">🔔 Nye brugere</div>' +
+      data.notifications.map(function(n){
+        var d = JSON.parse(n.data||'{}');
+        return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #FDE68A;">' +
+          '<div style="flex:1;font-size:11px;"><strong>'+d.name+'</strong> <span style="color:#92400E;">('+d.username+')</span><br><span style="font-size:9px;color:#92400E;">Viewer — ændr rolle nedenfor</span></div>' +
+          '<button onclick="dismissNotification('+n.id+')" style="background:none;border:none;font-size:14px;cursor:pointer;color:#92400E;" title="Afvis">✕</button>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }catch(e){ }
+}
+
+async function dismissNotification(id){
+  await fetch(AUTH_URL+'?action=dismiss_notification', {
+    method:'POST', credentials:'include',
+    headers: authHeaders(),
+    body: JSON.stringify({id: id})
+  });
+  loadNotifications();
+}
+
+async function changeUserRole(username, role){
+  try{
+    var res = await fetch(AUTH_URL+'?action=save_user', {
+      method:'POST', credentials:'include',
+      headers: authHeaders(),
+      body: JSON.stringify({username: username, role: role})
+    });
+    var data = await res.json();
+    if(data.ok){ loadUserList(); toast('✅ Rolle ændret til '+role); }
+    else toast('❌ '+data.error);
+  }catch(e){ toast('❌ Serverfejl'); }
+}
 
 async function loadDocs(){
   try{
