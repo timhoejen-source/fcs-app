@@ -6454,5 +6454,83 @@ function klubSetupGem(){
 }
 
 </script>
+
+<!-- Opret ny klub overlay -->
+<div id="opretKlubOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
+  <div style="background:#fff;border-radius:16px;overflow:hidden;max-width:480px;margin:0 auto 40px;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">⚽ Opret ny klub</div>
+      <button onclick="document.getElementById('opretKlubOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Din anmodning godkendes af administratoren inden for 24 timer.</div>
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klubnavn *</label>
+      <input id="opret-klub-navn" type="text" placeholder="F.eks. FC Eksempel" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID *</label>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <input id="opret-klub-id" type="text" placeholder="feks" maxlength="10" style="flex:1;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretKlubIdCheck()">
+        <span id="opret-id-status" style="font-size:18px;width:24px;flex-shrink:0;line-height:44px;"></span>
+      </div>
+      <div id="opret-id-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Kun bogstaver og tal, maks 10 tegn</div>
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="opret-admin-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
+      <input id="opret-admin-user" type="text" placeholder="Dit unikke brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
+      <input id="opret-admin-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;box-sizing:border-box;">
+      <div id="opret-klub-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitOpretKlub()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send anmodning</button>
+    </div>
+  </div>
+</div>
+
+<!-- Opret bruger overlay -->
+<div id="opretBrugerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
+  <div style="background:#fff;border-radius:16px;overflow:hidden;max-width:480px;margin:0 auto 40px;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">👤 Opret bruger</div>
+      <button onclick="document.getElementById('opretBrugerOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Du starter som viewer — klubbens admin kan ændre din rolle.</div>
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID *</label>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <input id="opret-bruger-klub-id" type="text" placeholder="F.eks. fcs" style="flex:1;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretBrugerKlubCheck()">
+        <span id="opret-bruger-klub-status" style="font-size:18px;width:24px;flex-shrink:0;line-height:44px;"></span>
+      </div>
+      <div id="opret-bruger-klub-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Indtast klub-ID fra din klub</div>
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="opret-bruger-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
+      <input id="opret-bruger-username" type="text" placeholder="Vælg et unikt brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
+      <input id="opret-bruger-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;box-sizing:border-box;">
+      <div id="opret-bruger-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitOpretBruger()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">✅ Opret bruger</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kontakt overlay -->
+<div id="kontaktOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
+  <div style="background:#fff;border-radius:16px;overflow:hidden;max-width:480px;margin:0 auto 40px;">
+    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">✉️ Kontakt administrator</div>
+      <button onclick="document.getElementById('kontaktOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
+      <input id="kontakt-navn" type="text" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Email *</label>
+      <input id="kontakt-email" type="email" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Din klub</label>
+      <input id="kontakt-klub" type="text" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Besked *</label>
+      <textarea id="kontakt-besked" rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+      <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
