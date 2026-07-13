@@ -745,8 +745,7 @@ window.IS_NATIVE_APP = true;
 
 <div id="welcomeOverlay" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9998;align-items:center;justify-content:center;padding:24px;">
   <div style="background:var(--white);border-radius:16px;padding:36px 28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;">
-    <div id="welcome-logo" style="width:64px;height:64px;background:#E5E7EB;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;">⚽</div>
-    <div id="welcome-klub-navn" style="font-size:13px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;"></div>
+    <div style="width:64px;height:64px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--navy);margin:0 auto 20px;">FCS</div>
     <div id="welcome-msg" style="font-size:17px;font-weight:700;color:var(--navy);margin-bottom:10px;line-height:1.5;"></div>
     <div id="welcome-sub" style="font-size:13px;color:var(--text-soft);line-height:1.7;margin-bottom:24px;"></div>
     <button onclick="dismissWelcome()" style="width:100%;padding:12px;background:var(--navy);color:var(--yellow);border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.04em;">Fortsæt →</button>
@@ -758,7 +757,7 @@ window.IS_NATIVE_APP = true;
     <button class="menu-btn" id="menuBtn" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
     <div class="hdr-crest" id="hdr-crest-img" style="background:#E5E7EB;font-size:16px;">⚽</div>
     <div>
-      <div class="hdr-title" id="hdr-club-name"><script>document.write(localStorage.getItem('fcs-klub-navn')||'Min Klub')</script></div>
+      <div class="hdr-title" id="hdr-club-name">Min Klub</div>
       <div class="hdr-sub" id="hdr-club-sub">Spillerstyring</div>
     </div>
   </div>
@@ -773,7 +772,6 @@ window.IS_NATIVE_APP = true;
       <span>Gem data</span>
     </button></span>
     <span id="viewer-badge" style="display:none;align-items:center;background:rgba(245,196,0,.15);border:1px solid rgba(245,196,0,.3);border-radius:6px;padding:0 10px;font-size:10px;font-weight:700;color:var(--yellow);letter-spacing:.06em;text-transform:uppercase;">👁️ Gæst</span>
-    <button onclick="openSletBruger()" id="slet-bruger-sb-btn" title="Slet min bruger" style="height:30px;padding:0 10px;background:rgba(220,38,38,.2);border:none;border-radius:6px;cursor:pointer;color:#fca5a5;font-size:11px;font-weight:700;font-family:inherit;display:none;">🗑️ Slet min bruger</button>
     <button onclick="doLogout()" id="logout-btn" title="Log ud" style="height:30px;padding:0 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       Log ud
@@ -1493,7 +1491,7 @@ window.onerror = function(msg, src, line, col, err){
 let players=[];
 let activeKampFilter='alle';
 let mCurrentPlayer=null;
-let teams=[];
+let teams=['U15 Liga2','U14 Liga2'];
 let trainings=[];
 // PDFs loaded separately after DOM ready
 let matches=[];
@@ -1550,44 +1548,14 @@ async function doLogin(){
     localStorage.setItem('fcs-user', data.username);
     // Gem token til iOS (cookie virker ikke altid i Capacitor)
     if(data.token) localStorage.setItem('fcs-token', data.token);
-    // Vis klub-navn i header
-    if(data.klub_navn){
-      localStorage.setItem('fcs-klub-navn', data.klub_navn);
-      localStorage.setItem('fcs-klub-id', data.klub_id||'');
-      var hn = document.getElementById('hdr-club-name');
-      if(hn) hn.textContent = data.klub_navn;
-    }
     document.getElementById('loginOverlay').style.display='none';
     applyRole();
-    var klubNavn = data.klub_navn || localStorage.getItem('fcs-klub-navn') || 'Min Klub';
-    var roleNames={admin:'Velkommen, '+data.name,trainer:'Velkommen, '+data.name,viewer:'Velkommen til '+klubNavn,player:'Velkommen spiller','time-reporter':'Velkommen, '+data.name};
-    var roleSubs={admin:'',trainer:'',viewer:'',player:'Du kan nu tjekke kommende træningssession ud.','time-reporter':''};
+    var roleNames={admin:'Velkommen, '+data.name,trainer:'Velkommen, '+data.name,viewer:'Velkommen til FCS Pige talent',player:'Velkommen spiller'};
+    var roleSubs={admin:'',trainer:'',viewer:'',player:'Du kan nu tjekke kommende træningssession ud.'};
     var wo=document.getElementById('welcomeOverlay');
     if(wo){
       document.getElementById('welcome-msg').textContent=roleNames[data.role]||'Velkommen';
       document.getElementById('welcome-sub').textContent=roleSubs[data.role]||'';
-      // Vis klub-navn og logo
-      var klubNavnEl = document.getElementById('welcome-klub-navn');
-      if(klubNavnEl) klubNavnEl.textContent = klubNavn;
-      // Logo — brug branding hvis sat, ellers grå bold
-      var settings = null;
-      try{ var raw=localStorage.getItem('fcs-klub-settings'); if(raw) settings=JSON.parse(raw); }catch(e){}
-      var logoEl = document.getElementById('welcome-logo');
-      if(logoEl){
-        if(settings && settings.logo){
-          logoEl.innerHTML = '<img src="'+settings.logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
-          logoEl.style.background = 'none';
-        } else {
-          logoEl.innerHTML = '⚽';
-          logoEl.style.background = '#E5E7EB';
-        }
-      }
-      wo.style.display='flex';
-    }
-    var roleSubs={admin:'',trainer:'',viewer:'',player:'Du kan nu tjekke kommende træningssession ud.'};
-    var wo=document.getElementById('welcomeOverlay');
-    if(wo){
-      // Vis klub-navn og logo er allerede sat ovenfor
       wo.style.display='flex';
     }
     setTimeout(function(){ loadFromServer(); }, 500);
@@ -1676,10 +1644,6 @@ function applyRole(){
   var sbUsers = document.getElementById('sb-users');
   if(sbUsers) sbUsers.style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) loadUserList();
-
-  // Slet bruger knap — vis for alle indloggede brugere
-  var sletBtn = document.getElementById('slet-bruger-sb-btn');
-  if(sletBtn) sletBtn.style.display = (currentRole && currentRole !== 'guest') ? '' : 'none';
 
   // Gem — kun admin
   var ghSync = document.getElementById('sb-github-sync');
@@ -4666,13 +4630,6 @@ async function loadFromServer(){
     if(Array.isArray(payload.exerciseFolders)) exerciseFolders=payload.exerciseFolders;
     if(payload.boardLineups) window._boardLineups=payload.boardLineups;
     if(payload.appSettings)  window._appSettings=payload.appSettings;
-    // Vis klub-navn i header
-    if(payload.klub_id){
-      var klubNavn = (window._appSettings && window._appSettings.klubDesign && window._appSettings.klubDesign.navn) || localStorage.getItem('fcs-klub-navn') || payload.klub_id;
-      var hn = document.getElementById('hdr-club-name');
-      if(hn) hn.textContent = klubNavn;
-      localStorage.setItem('fcs-klub-navn', klubNavn);
-    }
     // Anvend klubdesign fra server (gælder alle brugere i klubben)
     if(payload.appSettings && payload.appSettings.klubDesign){
       try{
@@ -6064,14 +6021,14 @@ async function submitOpretKlub(){
   var err = document.getElementById('opret-klub-err');
   err.style.display = 'none';
   var payload = {
-    action:           'opret_klub',
+    action:           'opret',
     klub_navn:        document.getElementById('opret-klub-navn').value.trim(),
     klub_id:          document.getElementById('opret-klub-id').value.trim(),
     admin_navn:       document.getElementById('opret-admin-navn').value.trim(),
-    admin_username:   document.getElementById('opret-admin-user').value.trim(),
-    admin_password:   document.getElementById('opret-admin-pw').value,
+    admin_brugernavn: document.getElementById('opret-admin-user').value.trim(),
+    admin_pw:         document.getElementById('opret-admin-pw').value,
   };
-  if(!payload.klub_navn||!payload.klub_id||!payload.admin_navn||!payload.admin_username||!payload.admin_password){
+  if(!payload.klub_navn||!payload.klub_id||!payload.admin_navn||!payload.admin_brugernavn||!payload.admin_pw){
     err.textContent='Alle felter skal udfyldes'; err.style.display=''; return;
   }
   try{
@@ -6079,15 +6036,10 @@ async function submitOpretKlub(){
     var data = await res.json();
     if(!data.ok){ err.textContent=data.error||'Fejl'; err.style.display=''; return; }
     document.getElementById('opretKlubOverlay').style.display='none';
-    toast('✅ Klub oprettet — fortsæt til at logge på');
-    // Udfyld login-felter automatisk
-    var loginUser = document.getElementById('login-user');
-    var loginPass = document.getElementById('login-pass');
-    if(loginUser) loginUser.value = payload.admin_username;
-    if(loginPass) loginPass.value = payload.admin_password;
-    // Vis login overlay
-    var lo = document.getElementById('loginOverlay');
-    if(lo) lo.style.display = 'flex';
+    // Log automatisk ind
+    document.getElementById('login-user').value = payload.admin_brugernavn;
+    document.getElementById('login-pass').value = payload.admin_pw;
+    await doLogin();
   }catch(e){
     err.textContent='Netværksfejl: '+e.message; err.style.display='';
   }
@@ -6133,13 +6085,7 @@ function klubBrandingApply(settings){
   var sub       = settings.sub       || 'Spillerstyring';
   var logo      = settings.logo      || null;
 
-  // Navn og logo vises på alle platforme
-  var nameEl = document.getElementById('hdr-club-name');
-  var subEl  = document.getElementById('hdr-club-sub');
-  if(nameEl) nameEl.textContent = navn;
-  if(subEl)  subEl.textContent  = sub;
-
-  // Farver og logo kun i iOS
+  // Kun i iOS — anvend ikke på webappen
   if(!isCapacitorApp()) return;
 
   // Apply CSS variables
@@ -6506,57 +6452,6 @@ function klubSetupGem(){
   }
 }
 
-
-function openSletBruger(){
-  var ov=document.getElementById('sletBrugerOverlay'); if(ov) ov.style.display='';
-  var er=document.getElementById('slet-bruger-err'); if(er) er.style.display='none';
-  var sc=document.getElementById('slet-bruger-confirm'); if(sc) sc.value='';
-  var sp=document.getElementById('slet-bruger-pw'); if(sp) sp.value='';
-}
-async function submitSletBruger(){
-  var err=document.getElementById('slet-bruger-err'); err.style.display='none';
-  var username=document.getElementById('slet-bruger-confirm').value.trim();
-  var password=document.getElementById('slet-bruger-pw').value;
-  if(!username||!password){err.textContent='Udfyld alle felter';err.style.display='';return;}
-  if(!confirm('Er du helt sikker? Din bruger slettes permanent.')) return;
-  try{
-    var res=await fetch(AUTH_URL+'?action=delete_self',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({username:username,password:password})});
-    var data=await res.json();
-    if(!data.ok){err.textContent=data.error||'Fejl';err.style.display='';return;}
-    document.getElementById('sletBrugerOverlay').style.display='none';
-    localStorage.removeItem('fcs-auth');localStorage.removeItem('fcs-token');localStorage.removeItem('fcs-user');
-    currentRole=''; toast('✅ Din bruger er slettet');
-    setTimeout(function(){document.getElementById('loginOverlay').style.display='flex';},1000);
-  }catch(e){err.textContent='Netværksfejl: '+e.message;err.style.display='';}
-}
-function openOpretBruger(){
-  var ov=document.getElementById('opretBrugerOverlay'); if(ov) ov.style.display='';
-  var er=document.getElementById('opret-bruger-err'); if(er) er.style.display='none';
-}
-async function loadNotifications(){
-  var el=document.getElementById('admin-notifications'); if(!el) return;
-  try{
-    var res=await fetch(AUTH_URL+'?action=notifications',{credentials:'include',headers:authHeaders()});
-    var data=await res.json();
-    if(!data.ok||!data.notifications||!data.notifications.length){el.innerHTML='';return;}
-    el.innerHTML='<div style="background:#FEF3C7;border:1.5px solid #FDE68A;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:10px;font-weight:700;color:#92400E;margin-bottom:6px;">🔔 Nye brugere</div>'+
-      data.notifications.map(function(n){var d=JSON.parse(n.data||'{}');
-        return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;"><div style="flex:1;font-size:11px;"><strong>'+d.name+'</strong> ('+d.username+')</div>'+
-          '<button onclick="dismissNotification('+n.id+')" style="background:none;border:none;cursor:pointer;">✕</button></div>';
-      }).join('')+'</div>';
-  }catch(e){}
-}
-async function dismissNotification(id){
-  await fetch(AUTH_URL+'?action=dismiss_notification',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({id:id})});
-  loadNotifications();
-}
-async function changeUserRole(username,role){
-  try{
-    var res=await fetch(AUTH_URL+'?action=save_user',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({username:username,role:role})});
-    var data=await res.json();
-    if(data.ok){loadUserList();toast('✅ Rolle ændret til '+role);}else toast('❌ '+data.error);
-  }catch(e){toast('❌ Serverfejl');}
-}
 </script>
 
 <!-- Opret ny klub overlay -->
@@ -6637,96 +6532,35 @@ async function changeUserRole(username,role){
   </div>
 </div>
 
-<div id="sletBrugerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
+<!-- Klub design overlay -->
+<div id="klubSetupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
   <div style="background:#fff;border-radius:16px;overflow:hidden;max-width:480px;margin:0 auto 40px;">
-    <div style="background:#dc2626;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:16px;font-weight:800;color:#fff;">🗑️ Slet min bruger</div>
-      <button onclick="document.getElementById('sletBrugerOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+    <div id="klub-setup-hdr" style="padding:20px 24px;display:flex;align-items:center;justify-content:space-between;background:#4B5563;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">🎨 Klubopsætning</div>
     </div>
     <div style="padding:20px;">
-      <div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px;margin-bottom:16px;">
-        <div style="font-size:13px;font-weight:700;color:#991B1B;margin-bottom:6px;">⚠️ Dette kan ikke fortrydes</div>
-        <div style="font-size:12px;color:#7F1D1D;">Når din bruger slettes, mister du al adgang. Dine data forbliver i systemet.</div>
-      </div>
-      <div style="font-size:12px;color:#374151;margin-bottom:16px;"><strong>Vil du slette din klub?</strong><br><span style="color:#6B7280;">Kontakt app-administratoren via ✉️ Kontakt.</span></div>
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Bekræft med dit brugernavn *</label>
-      <input id="slet-bruger-confirm" type="text" placeholder="Skriv dit brugernavn" style="width:100%;padding:10px;border:1.5px solid #FECACA;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
-      <input id="slet-bruger-pw" type="password" placeholder="Din adgangskode" style="width:100%;padding:10px;border:1.5px solid #FECACA;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;box-sizing:border-box;">
-      <div id="slet-bruger-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button onclick="submitSletBruger()" style="width:100%;padding:12px;background:#dc2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">🗑️ Ja, slet min bruger permanent</button>
-    </div>
-  </div>
-</div>
-<div id="opretKlubOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
-  <div style="background:#fff;border-radius:16px;overflow:hidden;max-width:480px;margin:0 auto 40px;">
-    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:16px;font-weight:800;color:#fff;">⚽ Opret ny klub</div>
-      <button onclick="document.getElementById('opretKlubOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
-    </div>
-    <div style="padding:20px;">
-      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Din anmodning godkendes af administratoren inden for 24 timer.</div>
       <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klubnavn *</label>
-      <input id="opret-klub-navn" type="text" placeholder="F.eks. FC Eksempel" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID *</label>
-      <div style="display:flex;gap:8px;margin-bottom:4px;">
-        <input id="opret-klub-id" type="text" placeholder="feks" maxlength="10" style="flex:1;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretKlubIdCheck()">
-        <span id="opret-id-status" style="font-size:18px;width:24px;flex-shrink:0;line-height:44px;"></span>
+      <input id="klub-setup-navn" type="text" placeholder="FC Eksempel" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Undertitel</label>
+      <input id="klub-setup-sub" type="text" placeholder="Spillerstyring" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Primær farve</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+        <input id="klub-setup-primary" type="color" value="#4B5563" style="width:48px;height:40px;border:none;border-radius:6px;cursor:pointer;padding:2px;">
+        <input id="klub-setup-primary-hex" type="text" placeholder="#4B5563" maxlength="7" style="flex:1;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;">
       </div>
-      <div id="opret-id-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Kun bogstaver og tal, maks 10 tegn</div>
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
-      <input id="opret-admin-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
-      <input id="opret-admin-user" type="text" placeholder="Dit unikke brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
-      <input id="opret-admin-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;box-sizing:border-box;">
-      <div id="opret-klub-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button onclick="submitOpretKlub()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send anmodning</button>
-    </div>
-  </div>
-</div>
-<div id="opretBrugerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
-  <div style="background:#fff;border-radius:16px;overflow:hidden;max-width:480px;margin:0 auto 40px;">
-    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:16px;font-weight:800;color:#fff;">👤 Opret bruger</div>
-      <button onclick="document.getElementById('opretBrugerOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
-    </div>
-    <div style="padding:20px;">
-      <div style="font-size:12px;color:#6B7280;margin-bottom:16px;">Du starter som viewer — klubbens admin kan ændre din rolle.</div>
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Klub-ID *</label>
-      <div style="display:flex;gap:8px;margin-bottom:4px;">
-        <input id="opret-bruger-klub-id" type="text" placeholder="F.eks. fcs" style="flex:1;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;" oninput="opretBrugerKlubCheck()">
-        <span id="opret-bruger-klub-status" style="font-size:18px;width:24px;flex-shrink:0;line-height:44px;"></span>
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Sekundær farve</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+        <input id="klub-setup-secondary" type="color" value="#9CA3AF" style="width:48px;height:40px;border:none;border-radius:6px;cursor:pointer;padding:2px;">
+        <input id="klub-setup-secondary-hex" type="text" placeholder="#9CA3AF" maxlength="7" style="flex:1;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;font-family:monospace;">
       </div>
-      <div id="opret-bruger-klub-info" style="font-size:11px;color:#9CA3AF;margin-bottom:12px;">Indtast klub-ID fra din klub</div>
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
-      <input id="opret-bruger-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
-      <input id="opret-bruger-username" type="text" placeholder="Vælg et unikt brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
-      <input id="opret-bruger-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;box-sizing:border-box;">
-      <div id="opret-bruger-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button onclick="submitOpretBruger()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">✅ Opret bruger</button>
-    </div>
-  </div>
-</div>
-<div id="kontaktOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;overflow-y:auto;padding:40px 16px;">
-  <div style="background:#fff;border-radius:16px;overflow:hidden;max-width:480px;margin:0 auto 40px;">
-    <div style="background:#4B5563;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:16px;font-weight:800;color:#fff;">✉️ Kontakt administrator</div>
-      <button onclick="document.getElementById('kontaktOverlay').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
-    </div>
-    <div style="padding:20px;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Dit navn *</label>
-      <input id="kontakt-navn" type="text" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Email *</label>
-      <input id="kontakt-email" type="email" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Din klub</label>
-      <input id="kontakt-klub" type="text" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
-      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Besked *</label>
-      <textarea id="kontakt-besked" rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
-      <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Logo</label>
+      <div style="position:relative;margin-bottom:16px;">
+        <button onclick="document.getElementById('klub-logo-input').click()" style="width:100%;padding:10px;background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;" id="klub-setup-logo-label">📷 Vælg logo-billede</button>
+        <input type="file" id="klub-logo-input" accept="image/*" style="position:absolute;opacity:0;pointer-events:none;" onchange="klubSetupLogoValgt(this)">
+      </div>
+      <button onclick="klubSetupGem()" id="klub-setup-gem-btn" style="width:100%;padding:14px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px;">💾 Gem klubopsætning</button>
+      <button onclick="klubSetupAnnuller()" id="klub-setup-cancel-btn" style="width:100%;padding:12px;background:none;color:#9CA3AF;border:none;font-size:13px;cursor:pointer;margin-top:8px;font-family:inherit;">Ikke lige nu</button>
+      <button id="klub-setup-nulstil-btn" onclick="klubSetupNulstil()" style="display:none;width:100%;padding:10px;background:none;color:#dc2626;border:1px solid #fecaca;border-radius:8px;font-size:12px;cursor:pointer;margin-top:8px;font-family:inherit;">🗑️ Nulstil design</button>
     </div>
   </div>
 </div>
