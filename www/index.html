@@ -745,7 +745,8 @@ window.IS_NATIVE_APP = true;
 
 <div id="welcomeOverlay" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:9998;align-items:center;justify-content:center;padding:24px;">
   <div style="background:var(--white);border-radius:16px;padding:36px 28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;">
-    <div style="width:64px;height:64px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--navy);margin:0 auto 20px;">FCS</div>
+    <div id="welcome-logo" style="width:64px;height:64px;background:#E5E7EB;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;">⚽</div>
+    <div id="welcome-klub-navn" style="font-size:13px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;"></div>
     <div id="welcome-msg" style="font-size:17px;font-weight:700;color:var(--navy);margin-bottom:10px;line-height:1.5;"></div>
     <div id="welcome-sub" style="font-size:13px;color:var(--text-soft);line-height:1.7;margin-bottom:24px;"></div>
     <button onclick="dismissWelcome()" style="width:100%;padding:12px;background:var(--navy);color:var(--yellow);border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.04em;">Fortsæt →</button>
@@ -1559,11 +1560,33 @@ async function doLogin(){
     applyRole();
     var klubNavn = data.klub_navn || localStorage.getItem('fcs-klub-navn') || 'Min Klub';
     var roleNames={admin:'Velkommen, '+data.name,trainer:'Velkommen, '+data.name,viewer:'Velkommen til '+klubNavn,player:'Velkommen spiller','time-reporter':'Velkommen, '+data.name};
-    var roleSubs={admin:'',trainer:'',viewer:'',player:'Du kan nu tjekke kommende træningssession ud.'};
+    var roleSubs={admin:'',trainer:'',viewer:'',player:'Du kan nu tjekke kommende træningssession ud.','time-reporter':''};
     var wo=document.getElementById('welcomeOverlay');
     if(wo){
       document.getElementById('welcome-msg').textContent=roleNames[data.role]||'Velkommen';
       document.getElementById('welcome-sub').textContent=roleSubs[data.role]||'';
+      // Vis klub-navn og logo
+      var klubNavnEl = document.getElementById('welcome-klub-navn');
+      if(klubNavnEl) klubNavnEl.textContent = klubNavn;
+      // Logo — brug branding hvis sat, ellers grå bold
+      var settings = null;
+      try{ var raw=localStorage.getItem('fcs-klub-settings'); if(raw) settings=JSON.parse(raw); }catch(e){}
+      var logoEl = document.getElementById('welcome-logo');
+      if(logoEl){
+        if(settings && settings.logo){
+          logoEl.innerHTML = '<img src="'+settings.logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+          logoEl.style.background = 'none';
+        } else {
+          logoEl.innerHTML = '⚽';
+          logoEl.style.background = '#E5E7EB';
+        }
+      }
+      wo.style.display='flex';
+    }
+    var roleSubs={admin:'',trainer:'',viewer:'',player:'Du kan nu tjekke kommende træningssession ud.'};
+    var wo=document.getElementById('welcomeOverlay');
+    if(wo){
+      // Vis klub-navn og logo er allerede sat ovenfor
       wo.style.display='flex';
     }
     setTimeout(function(){ loadFromServer(); }, 500);
