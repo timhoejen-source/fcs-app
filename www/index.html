@@ -757,7 +757,7 @@ window.IS_NATIVE_APP = true;
     <button class="menu-btn" id="menuBtn" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
     <div class="hdr-crest" id="hdr-crest-img" style="background:#E5E7EB;font-size:16px;">⚽</div>
     <div>
-      <div class="hdr-title" id="hdr-club-name">Min Klub</div>
+      <div class="hdr-title" id="hdr-club-name"><script>document.write(localStorage.getItem('fcs-klub-navn')||'Min Klub')</script></div>
       <div class="hdr-sub" id="hdr-club-sub">Spillerstyring</div>
     </div>
   </div>
@@ -1548,9 +1548,17 @@ async function doLogin(){
     localStorage.setItem('fcs-user', data.username);
     // Gem token til iOS (cookie virker ikke altid i Capacitor)
     if(data.token) localStorage.setItem('fcs-token', data.token);
+    // Vis klub-navn i header
+    if(data.klub_navn){
+      localStorage.setItem('fcs-klub-navn', data.klub_navn);
+      localStorage.setItem('fcs-klub-id', data.klub_id||'');
+      var hn = document.getElementById('hdr-club-name');
+      if(hn) hn.textContent = data.klub_navn;
+    }
     document.getElementById('loginOverlay').style.display='none';
     applyRole();
-    var roleNames={admin:'Velkommen, '+data.name,trainer:'Velkommen, '+data.name,viewer:'Velkommen til FCS Pige talent',player:'Velkommen spiller'};
+    var klubNavn = data.klub_navn || localStorage.getItem('fcs-klub-navn') || 'Min Klub';
+    var roleNames={admin:'Velkommen, '+data.name,trainer:'Velkommen, '+data.name,viewer:'Velkommen til '+klubNavn,player:'Velkommen spiller','time-reporter':'Velkommen, '+data.name};
     var roleSubs={admin:'',trainer:'',viewer:'',player:'Du kan nu tjekke kommende træningssession ud.'};
     var wo=document.getElementById('welcomeOverlay');
     if(wo){
@@ -4630,6 +4638,13 @@ async function loadFromServer(){
     if(Array.isArray(payload.exerciseFolders)) exerciseFolders=payload.exerciseFolders;
     if(payload.boardLineups) window._boardLineups=payload.boardLineups;
     if(payload.appSettings)  window._appSettings=payload.appSettings;
+    // Vis klub-navn i header
+    if(payload.klub_id){
+      var klubNavn = (window._appSettings && window._appSettings.klubDesign && window._appSettings.klubDesign.navn) || localStorage.getItem('fcs-klub-navn') || payload.klub_id;
+      var hn = document.getElementById('hdr-club-name');
+      if(hn) hn.textContent = klubNavn;
+      localStorage.setItem('fcs-klub-navn', klubNavn);
+    }
     // Anvend klubdesign fra server (gælder alle brugere i klubben)
     if(payload.appSettings && payload.appSettings.klubDesign){
       try{
@@ -6090,7 +6105,13 @@ function klubBrandingApply(settings){
   var sub       = settings.sub       || 'Spillerstyring';
   var logo      = settings.logo      || null;
 
-  // Kun i iOS — anvend ikke på webappen
+  // Navn og logo vises på alle platforme
+  var nameEl = document.getElementById('hdr-club-name');
+  var subEl  = document.getElementById('hdr-club-sub');
+  if(nameEl) nameEl.textContent = navn;
+  if(subEl)  subEl.textContent  = sub;
+
+  // Farver og logo kun i iOS
   if(!isCapacitorApp()) return;
 
   // Apply CSS variables
