@@ -773,7 +773,7 @@ window.IS_NATIVE_APP = true;
       <span>Gem data</span>
     </button></span>
     <span id="viewer-badge" style="display:none;align-items:center;background:rgba(245,196,0,.15);border:1px solid rgba(245,196,0,.3);border-radius:6px;padding:0 10px;font-size:10px;font-weight:700;color:var(--yellow);letter-spacing:.06em;text-transform:uppercase;">👁️ Gæst</span>
-    <button onclick="openSletBruger()" id="slet-bruger-sb-btn" title="Slet min bruger" style="height:30px;padding:0 10px;background:rgba(220,38,38,.2);border:none;border-radius:6px;cursor:pointer;color:#fca5a5;font-size:11px;font-weight:700;font-family:inherit;display:none;">🗑️</button>
+    <button onclick="openSletBruger()" id="slet-bruger-sb-btn" title="Slet min bruger" style="height:30px;padding:0 10px;background:rgba(220,38,38,.2);border:none;border-radius:6px;cursor:pointer;color:#fca5a5;font-size:11px;font-weight:700;font-family:inherit;display:none;">🗑️ Slet min bruger</button>
     <button onclick="doLogout()" id="logout-btn" title="Log ud" style="height:30px;padding:0 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       Log ud
@@ -1677,9 +1677,9 @@ function applyRole(){
   if(sbUsers) sbUsers.style.display = isAdmin ? 'block' : 'none';
   if(isAdmin) loadUserList();
 
-  // Slet bruger knap — vis for alle undtagen admin (admin slettet via brugerstyring)
+  // Slet bruger knap — vis for alle indloggede brugere
   var sletBtn = document.getElementById('slet-bruger-sb-btn');
-  if(sletBtn) sletBtn.style.display = (!isAdmin && currentRole && currentRole !== 'guest') ? '' : 'none';
+  if(sletBtn) sletBtn.style.display = (currentRole && currentRole !== 'guest') ? '' : 'none';
 
   // Gem — kun admin
   var ghSync = document.getElementById('sb-github-sync');
@@ -1805,7 +1805,7 @@ function applyRole(){
 
   // Klub opsætning — kun i iOS Capacitor app
   var sbKlubSetup = document.getElementById('sb-klub-setup');
-  if(sbKlubSetup) sbKlubSetup.style.display = isCapacitorApp() ? '' : 'none';
+  if(sbKlubSetup) sbKlubSetup.style.display = isAdmin ? '' : 'none';
   // Opret ny klub + opret bruger knapper — kun i iOS
   var opretBtn = document.getElementById('opret-klub-btn');
   if(opretBtn) opretBtn.style.display = isCapacitorApp() ? '' : 'none';
