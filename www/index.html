@@ -1561,6 +1561,14 @@ async function doLogin(){
     localStorage.setItem('fcs-user', data.username);
     // Gem token til iOS (cookie virker ikke altid i Capacitor)
     if(data.token) localStorage.setItem('fcs-token', data.token);
+    // Gem klub-navn og ryd gammel branding ved skift af klub
+    var prevKlubId = localStorage.getItem('fcs-klub-id');
+    if(data.klub_id && prevKlubId && prevKlubId !== data.klub_id){
+      // Ny klub — ryd gammel branding
+      localStorage.removeItem('fcs-klub-settings');
+    }
+    if(data.klub_navn) localStorage.setItem('fcs-klub-navn', data.klub_navn);
+    if(data.klub_id)   localStorage.setItem('fcs-klub-id',   data.klub_id);
     document.getElementById('loginOverlay').style.display='none';
     applyRole();
     var roleNames={admin:'Velkommen, '+data.name,trainer:'Velkommen, '+data.name,viewer:'Velkommen til FCS Pige talent',player:'Velkommen spiller'};
@@ -1600,20 +1608,51 @@ function ensureAdminFolder(){
 
 function onLoginSuccess(){
   document.getElementById('loginOverlay').style.display='none';
+
+  // Anvend klub-branding straks fra localStorage (opdateres igen ved loadFromServer)
+  var savedSettings = null;
+  try{ var raw=localStorage.getItem('fcs-klub-settings'); if(raw) savedSettings=JSON.parse(raw); }catch(e){}
+  if(savedSettings){
+    klubBrandingApply(savedSettings);
+  } else {
+    // Ingen branding gemt — vis grå cirkel og klub-navn
+    var hn = document.getElementById('hdr-club-name');
+    var crest = document.getElementById('hdr-crest-img');
+    var klubNavn = localStorage.getItem('fcs-klub-navn') || 'Min Klub';
+    if(hn) hn.textContent = klubNavn;
+    if(crest){ crest.innerHTML='⚽'; crest.style.background='#E5E7EB'; }
+  }
+
+  var klubNavn = localStorage.getItem('fcs-klub-navn') || 'Min Klub';
   var roleNames={
     admin:'Velkommen administrator, '+currentName,
     trainer:'Velkommen '+currentName,
-    viewer:'Velkommen til FCS Pige talent',
-    player:'Velkommen spiller'
+    viewer:'Velkommen til '+klubNavn,
+    player:'Velkommen spiller',
+    'time-reporter':'Velkommen '+currentName
   };
   var roleSubs={
     admin:'', trainer:'', viewer:'',
-    player:'Du kan nu tjekke kommende træningssession ud, så du er klar til at udføre øvelserne korrekt fra start.'
+    player:'Du kan nu tjekke kommende træningssession ud, så du er klar til at udføre øvelserne korrekt fra start.',
+    'time-reporter':''
   };
   var wo=document.getElementById('welcomeOverlay');
   if(wo){
     document.getElementById('welcome-msg').textContent=roleNames[currentRole]||'Velkommen';
     document.getElementById('welcome-sub').textContent=roleSubs[currentRole]||'';
+    // Vis klub-navn i velkomst
+    var wkn = document.getElementById('welcome-klub-navn');
+    if(wkn) wkn.textContent = klubNavn;
+    // Logo i velkomst
+    var wlogo = document.getElementById('welcome-logo');
+    if(wlogo){
+      if(savedSettings && savedSettings.logo){
+        wlogo.innerHTML='<img src="'+savedSettings.logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+        wlogo.style.background='none';
+      } else {
+        wlogo.innerHTML='⚽'; wlogo.style.background='#E5E7EB';
+      }
+    }
     wo.style.display='flex';
   }
   ensureAdminFolder();
