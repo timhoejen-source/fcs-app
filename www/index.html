@@ -1385,7 +1385,9 @@ window.IS_NATIVE_APP = true;
         <button class="pos-btn" onclick="pickPos('A',this,'m')">9 — Angriber</button>
       </div>
     </div>
-    <div class="fg"><label>Udviklingsmål</label><textarea id="m-goal"></textarea></div>
+    <div class="fg"><label>Spillerens styrker</label><textarea id="m-goal-styrker" placeholder="Beskriv spillerens styrker..." rows="3"></textarea></div>
+    <div class="fg"><label>Spillerens svagheder</label><textarea id="m-goal-svagheder" placeholder="Beskriv spillerens svagheder..." rows="3"></textarea></div>
+    <div class="fg"><label>Opsummering / Udviklingsmål</label><textarea id="m-goal" placeholder="Samlet opsummering og mål..." rows="3"></textarea></div>
     <div class="fg">
       <label>Udviklingsøvelser <span style="font-weight:400;color:var(--text-soft);">(maks 4)</span></label>
       <div id="m-ex-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;"></div>
@@ -2165,7 +2167,18 @@ function openEdit(id){
   var pTeams=Array.isArray(p.team)?p.team:(p.team?[p.team]:[]);
   setTimeout(function(){setCheckedTeams('m-team-checks',pTeams);},0);
   document.getElementById('m-jersey').value=p.jersey||'';
-  document.getElementById('m-goal').value=p.goal||'';
+  // Load goal - support both old string format and new object format
+  var goalData = p.goal || '';
+  if(typeof goalData === 'object' && goalData !== null){
+    document.getElementById('m-goal-styrker').value = goalData.styrker || '';
+    document.getElementById('m-goal-svagheder').value = goalData.svagheder || '';
+    document.getElementById('m-goal').value = goalData.opsummering || '';
+  } else {
+    // Backward compat: old single string goes into opsummering
+    document.getElementById('m-goal-styrker').value = '';
+    document.getElementById('m-goal-svagheder').value = '';
+    document.getElementById('m-goal').value = goalData;
+  }
   // Exercises
   mPlayerExercises = JSON.parse(JSON.stringify(p.exercises||[]));
   renderModalExList();
@@ -2214,7 +2227,10 @@ function saveEdit(){
   const dob=document.getElementById('m-dob').value.trim();
   const team=getCheckedTeams('m-team-checks');
   const jersey=document.getElementById('m-jersey').value;
-  const goal=document.getElementById('m-goal').value.trim();
+  const goalOpsummering = document.getElementById('m-goal').value.trim();
+  const goalStyrker = document.getElementById('m-goal-styrker').value.trim();
+  const goalSvagheder = document.getElementById('m-goal-svagheder').value.trim();
+  const goal = {styrker: goalStyrker, svagheder: goalSvagheder, opsummering: goalOpsummering};
   if(!name||!mCls){toast('⚠️ Udfyld navn og klassifikation');return;}
   const age=dob?calcAgeFromDob(dob):(players.find(p=>p.id===editId)||{}).age||0;
   const i=players.findIndex(p=>p.id===editId);if(i===-1)return;
@@ -2402,7 +2418,15 @@ const cards=plist=>plist.map(p=>{
     const pTeamsArr=Array.isArray(p.team)?p.team.filter(Boolean):(p.team?[p.team]:[]);
     const teamChipsHtml=pTeamsArr.length?'<div class="card-team-chips">'+pTeamsArr.map(function(t){return '<span class="team-chip">'+t+'</span>';}).join('')+'</div>':'';
     const posTag=pArr.length?pArr.map(pos=>'<span class="tag tag-pos">'+(POS_LABELS[pos]||pos)+'</span>').join(''):'<span class="tag tag-missing">Pos. mangler</span>';
-    const goalHtml=p.goal?'<div class="card-goal"><span class="goal-lbl">🎯 Udviklingsmål</span>'+p.goal+'</div>':'';
+    
+  // Helper: hent goal som tekst-objekt
+  var goalObj = (typeof p.goal === 'object' && p.goal) ? p.goal : {styrker:'', svagheder:'', opsummering: p.goal||''};
+  var goalHtml = (goalObj.styrker || goalObj.svagheder || goalObj.opsummering) ?
+    '<div class="card-goal">' +
+      (goalObj.styrker ? '<div style="margin-bottom:8px;"><span class="goal-lbl">💪 Styrker</span>' + goalObj.styrker + '</div>' : '') +
+      (goalObj.svagheder ? '<div style="margin-bottom:8px;"><span class="goal-lbl">🔧 Svagheder</span>' + goalObj.svagheder + '</div>' : '') +
+      (goalObj.opsummering ? '<div><span class="goal-lbl">🎯 Mål</span>' + goalObj.opsummering + '</div>' : '') +
+    '</div>' : '';
     const exArr=p.exercises||[];
     const exHtmlCard=exArr.length?
       '<div class="card-goal" style="margin-top:4px;">'+
