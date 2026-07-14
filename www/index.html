@@ -1443,6 +1443,17 @@ window.IS_NATIVE_APP = true;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+function goalText(goal, del){
+  if(!goal) return '';
+  if(typeof goal === 'string') return goal;
+  var d = del || ' | ';
+  var parts = [];
+  if(goal.styrker) parts.push('💪 '+goal.styrker);
+  if(goal.svagheder) parts.push('🔧 '+goal.svagheder);
+  if(goal.opsummering) parts.push('🎯 '+goal.opsummering);
+  return parts.join(d);
+}
+
 function resetKampMinutes(kampName){
   if(!confirm('Nulstil spilletid for alle udtagne spillere i kampen "'+kampName+'"?')) return;
   players.forEach(function(p){
@@ -2730,7 +2741,8 @@ function exportSinglePdf(){
   }
   var jerseyBadge=p.jersey?'<span style="background:#F5C400;color:#0A2342;font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:4px;">#'+p.jersey+'</span>':'';
   var matchSection=matches.length?'<div><div style="font-size:9px;font-weight:700;color:#5A7A9F;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3mm;">🏆 Kampudtagelse</div><table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr><th style="background:#0A2342;color:#F5C400;padding:5px 8px;text-align:left;font-size:9px;text-transform:uppercase;">Kamp</th><th style="background:#0A2342;color:#F5C400;padding:5px 8px;text-align:left;font-size:9px;text-transform:uppercase;">Status</th></tr></thead><tbody>'+matchRows+'</tbody></table></div>':'';
-  var goalSection=p.goal?'<div><div style="font-size:9px;font-weight:700;color:#5A7A9F;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3mm;">🎯 Udviklingsmål</div><div style="background:#EBF2FB;border-left:4px solid #1A6EC0;border-radius:0 8px 8px 0;padding:5mm 6mm;"><div style="font-size:9px;font-weight:700;color:#1A6EC0;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2mm;">Mål for sæsonen</div><div style="font-size:12px;color:#2C4A72;line-height:1.7;font-style:italic;">'+p.goal+'</div></div></div>':'';
+  var _gt=goalText(p.goal,'\n');
+  var goalSection=_gt?'<div><div style="font-size:9px;font-weight:700;color:#5A7A9F;text-transform:uppercase;letter-spacing:.12em;margin-bottom:3mm;">🎯 Udviklingsmål</div><div style="background:#EBF2FB;border-left:4px solid #1A6EC0;border-radius:0 8px 8px 0;padding:5mm 6mm;"><div style="font-size:9px;font-weight:700;color:#1A6EC0;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2mm;">Mål for sæsonen</div><div style="font-size:12px;color:#2C4A72;line-height:1.7;font-style:italic;">'+p.goal+'</div></div></div>':'';
   // Training attendance for this player
   var playerTrainings=trainings.filter(function(t){return t.attendance&&(t.attendance[p.id]==='ja'||t.attendance[p.id]==='nej');});
   var trRows='';
@@ -6109,10 +6121,37 @@ function klubBrandingApply(settings){
   var sub       = settings.sub       || 'Spillerstyring';
   var logo      = settings.logo      || null;
 
-  // Kun i iOS — anvend ikke på webappen
-  if(!isCapacitorApp()) return;
+  // Sæt navn i header — begge platforme
+  var nameEl = document.getElementById('hdr-club-name');
+  var subEl  = document.getElementById('hdr-club-sub');
+  if(nameEl) nameEl.textContent = navn;
+  if(subEl)  subEl.textContent  = sub;
 
-  // Apply CSS variables
+  // Logo i header crest
+  var crest = document.getElementById('hdr-crest-img');
+  if(crest){
+    if(logo){
+      crest.innerHTML = '<img src="'+logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+      crest.style.background = 'none';
+    } else {
+      crest.innerHTML = '⚽';
+      crest.style.background = '#E5E7EB';
+    }
+  }
+
+  // Farver — begge platforme
+  var root = document.documentElement;
+  root.style.setProperty('--navy', primary);
+  root.style.setProperty('--navy-mid', shadeColor(primary, 20));
+  root.style.setProperty('--navy-dark', shadeColor(primary, -20));
+
+  // Login-boks styling
+  var lb = document.querySelector('.login-box');
+  if(lb){
+    lb.style.setProperty('--login-accent', primary);
+  }
+
+Apply CSS variables
   var root = document.documentElement;
   root.style.setProperty('--navy',      primary);
   root.style.setProperty('--navy-mid',  shadeColor(primary, 20));
