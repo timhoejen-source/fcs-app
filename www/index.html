@@ -4702,6 +4702,7 @@ async function saveToServer(silent){
     var payload=JSON.stringify({
       players,teams,matches,trainings,cups,dbuStilling,exerciseArchive,exerciseFolders,
       boardLineups:window._boardLineups||{},
+      appSettings:window._appSettings||{},
       savedAt:new Date().toISOString(),
       savedBy:localStorage.getItem('fcs-user')||''
     });
