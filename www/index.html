@@ -4716,9 +4716,22 @@ async function loadFromServer(){
     // Anvend klubdesign fra server (gælder alle brugere i klubben)
     if(payload.appSettings && payload.appSettings.klubDesign){
       try{
-        localStorage.setItem('fcs-klub-settings', JSON.stringify(payload.appSettings.klubDesign));
-        klubBrandingApply(payload.appSettings.klubDesign);
+        // Anvend kun design hvis det tilhører denne klubs egne indstillinger
+        // Brug altid login-data.klub_navn som autoritativ kilde
+        var design = Object.assign({}, payload.appSettings.klubDesign);
+        var loginNavn = localStorage.getItem('fcs-klub-navn');
+        if(loginNavn) design.navn = loginNavn; // Overskriv evt. forkert gemt navn
+        localStorage.setItem('fcs-klub-settings', JSON.stringify(design));
+        klubBrandingApply(design);
       }catch(e){}
+    } else {
+      // Ingen klubdesign — vis kun klub-navn fra login
+      var hn = document.getElementById('hdr-club-name');
+      var loginNavn = localStorage.getItem('fcs-klub-navn');
+      if(hn && loginNavn) hn.textContent = loginNavn;
+      // Ryd evt. gammelt forkert logo
+      var crest = document.getElementById('hdr-crest-img');
+      if(crest){ crest.innerHTML='⚽'; crest.style.background='#E5E7EB'; }
     }
     window._stillingBilleder = {}; // Billeder hentes separat hvis stilling-img.php eksisterer
     try{
