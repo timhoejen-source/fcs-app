@@ -6548,6 +6548,29 @@ function klubSetupNulstil(){
   toast('✅ Klubdesign nulstillet');
 }
 
+async function loadActivityLog(){
+  var el = document.getElementById('activity-log-list');
+  if(!el) return;
+  el.innerHTML = '<div style="font-size:11px;color:var(--text-soft);padding:8px 0;">Henter log...</div>';
+  try{
+    var res = await fetch(AUTH_URL+'?action=activity_log', {credentials:'include', headers:authHeaders()});
+    var data = await res.json();
+    if(!data.ok || !data.log || !data.log.length){
+      el.innerHTML = '<div style="font-size:11px;color:var(--text-soft);padding:8px 0;">Ingen aktivitet endnu</div>';
+      return;
+    }
+    el.innerHTML = data.log.map(function(entry){
+      return '<div style="padding:5px 0;border-bottom:1px solid var(--g100);font-size:10px;">' +
+        '<span style="color:var(--text-soft);">' + (entry.ts||'') + '</span> ' +
+        '<strong>' + (entry.username||'') + '</strong> ' + (entry.note||entry.action||'') +
+      '</div>';
+    }).join('');
+  }catch(e){
+    el.innerHTML = '<div style="font-size:11px;color:#dc2626;padding:8px 0;">Fejl: '+e.message+'</div>';
+  }
+}
+
+
 function klubSetupGem(){
   var overlay = document.getElementById('klubSetupOverlay');
   var foerstgang = overlay && overlay.dataset.foerstgang === '1';
