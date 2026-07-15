@@ -1444,6 +1444,17 @@ window.IS_NATIVE_APP = true;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+async function clearActivityLog(){
+  if(!confirm('Ryd hele aktivitetsloggen?')) return;
+  try{
+    var res = await fetch(AUTH_URL+'?action=clear_activity_log',{method:'POST',credentials:'include',headers:authHeaders()});
+    var data = await res.json();
+    if(data.ok){ toast('✅ Aktivitetslog ryddet'); loadActivityLog(); }
+    else toast('❌ '+data.error);
+  }catch(e){ toast('❌ Serverfejl'); }
+}
+
+
 function goalText(goal, del){
   if(!goal) return '';
   if(typeof goal === 'string') return goal;
