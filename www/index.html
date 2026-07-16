@@ -2171,7 +2171,7 @@ function renderSelects(){
   var renderChecks=function(containerId, selectedTeams){
     var el=document.getElementById(containerId);
     if(!el) return;
-    el.innerHTML=teams.map(function(t){
+    el.innerHTML=getAllowedTeams().map(function(t){
       var checked=(selectedTeams||[]).includes(t)?'checked':'';
       return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;cursor:pointer;">'+
         '<input type="checkbox" value="'+t+'" '+checked+' style="width:14px;height:14px;accent-color:var(--navy);cursor:pointer;">'+
@@ -2496,15 +2496,30 @@ function getAllowedPlayers(){
   return players.filter(function(p){ return _allowedTeams.indexOf(p.team) !== -1; });
 }
 
+function getAllowedMatches(){
+  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return matches;
+  return matches.filter(function(m){ return _allowedTeams.indexOf(m.hold) !== -1; });
+}
+
+function getAllowedTeams(){
+  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return teams;
+  return teams.filter(function(t){ return _allowedTeams.indexOf(t) !== -1; });
+}
+
+function isTeamAllowed(team){
+  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return true;
+  return _allowedTeams.indexOf(team) !== -1;
+}
+
 function render(){
-  document.getElementById('s-total').textContent=players.length;
+  document.getElementById('s-total').textContent=getAllowedPlayers().length;
   document.getElementById('s-teams').textContent=teams.length;
   document.getElementById('s-a').textContent=players.filter(p=>p.cls==='A').length;
   document.getElementById('team-filters').innerHTML=
     '<button class="filter-sheet-chip'+(activeTeamFilter==='alle'?' active':'')+'" onclick="setTeamFilter(\'alle\',this)">Alle hold</button>'+
-    teams.map(t=>'<button class="filter-sheet-chip'+(activeTeamFilter===t?' active':'')+'" onclick="setTeamFilter(\''+t+'\',this)">'+t+'</button>').join('');
+    getAllowedTeams().map(t=>'<button class="filter-sheet-chip'+(activeTeamFilter===t?' active':'')+'" onclick="setTeamFilter(\''+t+'\',this)">'+t+'</button>').join('');
   updateFilterSummary();
-  const opts='<option value="">– Vælg hold –</option>'+teams.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  const opts='<option value="">– Vælg hold –</option>'+getAllowedTeams().map(t=>'<option value="'+t+'">'+t+'</option>').join('');
   renderSelects(); // rebuild team checkboxes
   const fp=filtered(),list=document.getElementById('player-list');
   if(!fp.length){list.innerHTML='<div class="empty"><div class="empty-icon">⚽</div><div class="empty-t">'+(players.length?'Ingen resultater':'Ingen spillere endnu')+'</div><div class="empty-s">'+(players.length?'Prøv en anden søgning':'Importer eller tilføj manuelt')+'</div></div>';return;}
@@ -3052,7 +3067,7 @@ function renderKampe(){
   // Render hold filter buttons
   var holdFilters=document.getElementById('kamp-hold-filters');
   if(holdFilters){
-    var kampHolds=[...new Set(matches.filter(function(m){return m.hold;}).map(function(m){return m.hold;}))].sort();
+    var kampHolds=[...new Set(getAllowedMatches().filter(function(m){return m.hold;}).map(function(m){return m.hold;}))].sort();
     holdFilters.innerHTML=kampHolds.map(function(h){
       return '<button class="filter-btn kamp-hold-btn'+(activeKampFilter===h?' active':'')+'" data-hold="'+h+'">'+h+'</button>';
     }).join('');
@@ -3096,7 +3111,7 @@ function renderKampe(){
     // Attendance rows — only players matching this kamp's hold (if hold is set)
     var kampHold = kamp.hold || '';
     var eligiblePlayers = kampHold ?
-      players.filter(function(p){
+      getAllowedPlayers().filter(function(p){
         var pTeams = Array.isArray(p.team) ? p.team : (p.team ? [p.team] : []);
         var normHold = kampHold.toLowerCase().split('').filter(function(ch){return (ch>='a'&&ch<='z')||(ch>='0'&&ch<='9');}).join('');
         return pTeams.some(function(t){
