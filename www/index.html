@@ -1541,6 +1541,8 @@ const STILLING_IMG_URL = BASE_URL + 'stilling-img.php';
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 let currentRole = '';
+var _allowedTeams = [];
+try{ _allowedTeams = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]'); }catch(e){ _allowedTeams=[]; }
 
 
 function dismissWelcome(){
@@ -1573,6 +1575,9 @@ async function doLogin(){
     localStorage.setItem('fcs-user', data.username);
     // Gem token til iOS (cookie virker ikke altid i Capacitor)
     if(data.token) localStorage.setItem('fcs-token', data.token);
+    // Gem allowed_teams for trænere
+    window._allowedTeams = data.allowed_teams || [];
+    localStorage.setItem('fcs-allowed-teams', JSON.stringify(window._allowedTeams));
     // Ryd altid gammel branding ved login — sættes korrekt af loadFromServer
     localStorage.removeItem('fcs-klub-settings');
     if(data.klub_navn) localStorage.setItem('fcs-klub-navn', data.klub_navn);
@@ -2486,6 +2491,11 @@ function importXlsx(input){
 // ── Render ────────────────────────────────────────────────────────────────────
 const POS_LABELS={'MM':'1 — Keeper','VB':'2 — Venstre back','HB':'5 — Højre back','CB':'3 — Venstre center back','CB2':'4 — Højre center back','DM':'6 — Defensiv midt','6':'6 — Defensiv midt','CM':'6 — Center midt','8':'8L/8R — Midt (venstre/højre)','OM':'10 — Off. midt','10':'10 — Off. midt/Angriber','HK':'11 — Højre kant','VK':'7 — Venstre kant','9':'9L/9R — Angriber (venstre/højre)','A':'9 — Angriber'};
 function initials(n){return n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';}
+function getAllowedPlayers(){
+  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return players;
+  return players.filter(function(p){ return _allowedTeams.indexOf(p.team) !== -1; });
+}
+
 function render(){
   document.getElementById('s-total').textContent=players.length;
   document.getElementById('s-teams').textContent=teams.length;
@@ -4853,13 +4863,23 @@ function openUserModal(user){
       '<div class="fg"><label>Brugernavn</label><input type="text" id="um-username" value="'+(user.username||'')+'" placeholder="fx mette" '+(isNew?'':'readonly style="background:var(--g100);"')+'></div>'+
       '<div class="fg"><label>'+(isNew?'Kodeord':'Nyt kodeord (tom = uændret)')+'</label><input type="password" id="um-pass" placeholder="'+(isNew?'Kodeord':'Lad tom for uændret')+'"></div>'+
       '<div class="fg"><label>Rolle</label>'+
-        '<select id="um-role" style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-family:inherit;font-size:13px;">'+
+        '<select id="um-role" onchange="umRoleChange()" style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-family:inherit;font-size:13px;">'+
           '<option value="admin"'+(user.role==='admin'?' selected':'')+'>👑 Admin — fuld adgang</option>'+
           '<option value="trainer"'+(user.role==='trainer'?' selected':'')+'>⚽ Træner — redigere</option>'+
           '<option value="viewer"'+(user.role==='viewer'?' selected':'')+'>👁️ Viewer — læse kampe og cups</option>'+
           '<option value="player"'+(user.role==='player'?' selected':'')+'>🏃 Spiller — træning, kampe og cups</option>'+
         '<option value="time-reporter"'+(user.role==='time-reporter'?' selected':'')+'>⏱️ Tidsregistrering — kun spilletid</option>'+
         '</select>'+
+      '</div>'+
+      '<div id="um-teams-section" style="'+(user.role==='trainer'?'':'display:none;')+'">'+
+        '<div class="fg"><label>Hold træner har adgang til</label>'+
+        '<div id="um-teams-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">'+
+          teams.map(function(t){
+            var checked=(user.allowed_teams||[]).indexOf(t)!==-1;
+            return '<label style="display:flex;align-items:center;gap:4px;font-size:12px;background:var(--g100);padding:4px 8px;border-radius:6px;cursor:pointer;">'+
+              '<input type="checkbox" value="'+t+'" '+(checked?'checked':'')+' style="accent-color:var(--navy);"> '+t+'</label>';
+          }).join('')+
+        '</div></div>'+
       '</div>'+
       '<div id="um-err" style="color:#dc2626;font-size:11px;min-height:16px;"></div>'+
       '<div style="display:flex;gap:8px;margin-top:8px;">'+
@@ -4892,6 +4912,12 @@ document.addEventListener('click',function(e){
   }
 });
 
+function umRoleChange(){
+  var role = document.getElementById('um-role').value;
+  var sec = document.getElementById('um-teams-section');
+  if(sec) sec.style.display = (role === 'trainer') ? '' : 'none';
+}
+
 async function saveUserFromModal(orig, isNew){
   var name=document.getElementById('um-name').value.trim();
   var username=document.getElementById('um-username').value.trim().toLowerCase();
@@ -4904,7 +4930,9 @@ async function saveUserFromModal(orig, isNew){
     var res=await fetch(AUTH_URL+'?action=save_user',{
       method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({username,password,role,name})
+      body:JSON.stringify({username, password, role, name,
+        allowed_teams: Array.from(document.querySelectorAll('#um-teams-list input:checked')).map(function(cb){return cb.value;})
+      })
     });
     var data=await res.json();
     if(!data.ok){errEl.textContent=data.error||'Fejl';return;}
