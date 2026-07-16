@@ -1576,8 +1576,9 @@ async function doLogin(){
     // Gem token til iOS (cookie virker ikke altid i Capacitor)
     if(data.token) localStorage.setItem('fcs-token', data.token);
     // Gem allowed_teams for trænere
-    window._allowedTeams = data.allowed_teams || [];
-    localStorage.setItem('fcs-allowed-teams', JSON.stringify(window._allowedTeams));
+    _allowedTeams = data.allowed_teams || [];
+    window._allowedTeams = _allowedTeams;
+    localStorage.setItem('fcs-allowed-teams', JSON.stringify(_allowedTeams));
     // Ryd altid gammel branding ved login — sættes korrekt af loadFromServer
     localStorage.removeItem('fcs-klub-settings');
     if(data.klub_navn) localStorage.setItem('fcs-klub-navn', data.klub_navn);
@@ -2492,23 +2493,43 @@ function importXlsx(input){
 const POS_LABELS={'MM':'1 — Keeper','VB':'2 — Venstre back','HB':'5 — Højre back','CB':'3 — Venstre center back','CB2':'4 — Højre center back','DM':'6 — Defensiv midt','6':'6 — Defensiv midt','CM':'6 — Center midt','8':'8L/8R — Midt (venstre/højre)','OM':'10 — Off. midt','10':'10 — Off. midt/Angriber','HK':'11 — Højre kant','VK':'7 — Venstre kant','9':'9L/9R — Angriber (venstre/højre)','A':'9 — Angriber'};
 function initials(n){return n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';}
 function getAllowedPlayers(){
-  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return players;
-  return players.filter(function(p){ return _allowedTeams.indexOf(p.team) !== -1; });
+  if(currentRole !== 'trainer') return players;
+  var at = _allowedTeams;
+  if(!at || !at.length) {
+    try{ at = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]'); }catch(e){ at=[]; }
+  }
+  if(!at || !at.length) return players;
+  return players.filter(function(p){ return at.indexOf(p.team) !== -1; });
 }
 
 function getAllowedMatches(){
-  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return matches;
-  return matches.filter(function(m){ return _allowedTeams.indexOf(m.hold) !== -1; });
+  if(currentRole !== 'trainer') return matches;
+  var at = _allowedTeams;
+  if(!at || !at.length) {
+    try{ at = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]'); }catch(e){ at=[]; }
+  }
+  if(!at || !at.length) return matches;
+  return matches.filter(function(m){ return at.indexOf(m.hold) !== -1; });
 }
 
 function getAllowedTeams(){
-  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return teams;
-  return teams.filter(function(t){ return _allowedTeams.indexOf(t) !== -1; });
+  if(currentRole !== 'trainer') return teams;
+  var at = _allowedTeams;
+  if(!at || !at.length) {
+    try{ at = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]'); }catch(e){ at=[]; }
+  }
+  if(!at || !at.length) return teams;
+  return teams.filter(function(t){ return at.indexOf(t) !== -1; });
 }
 
 function isTeamAllowed(team){
-  if(currentRole !== 'trainer' || !_allowedTeams || !_allowedTeams.length) return true;
-  return _allowedTeams.indexOf(team) !== -1;
+  if(currentRole !== 'trainer') return true;
+  var at = _allowedTeams;
+  if(!at || !at.length) {
+    try{ at = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]'); }catch(e){ at=[]; }
+  }
+  if(!at || !at.length) return true;
+  return at.indexOf(team) !== -1;
 }
 
 function render(){
