@@ -2512,9 +2512,12 @@ function isTeamAllowed(team){
 }
 
 function render(){
-  document.getElementById('s-total').textContent=getAllowedPlayers().length;
-  document.getElementById('s-teams').textContent=teams.length;
-  document.getElementById('s-a').textContent=players.filter(p=>p.cls==='A').length;
+  // Opdater _allowedTeams fra localStorage (sikrer at den altid er opdateret)
+  try{ _allowedTeams = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]'); }catch(e){ _allowedTeams=[]; }
+  var ap = getAllowedPlayers();
+  document.getElementById('s-total').textContent=ap.length;
+  document.getElementById('s-teams').textContent=getAllowedTeams().length;
+  document.getElementById('s-a').textContent=ap.filter(p=>p.cls==='A').length;
   document.getElementById('team-filters').innerHTML=
     '<button class="filter-sheet-chip'+(activeTeamFilter==='alle'?' active':'')+'" onclick="setTeamFilter(\'alle\',this)">Alle hold</button>'+
     getAllowedTeams().map(t=>'<button class="filter-sheet-chip'+(activeTeamFilter===t?' active':'')+'" onclick="setTeamFilter(\''+t+'\',this)">'+t+'</button>').join('');
