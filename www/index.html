@@ -1577,7 +1577,15 @@ async function doLogin(){
     localStorage.removeItem('fcs-klub-settings');
     if(data.klub_navn) localStorage.setItem('fcs-klub-navn', data.klub_navn);
     if(data.klub_id)   localStorage.setItem('fcs-klub-id',   data.klub_id);
-    // Opdater header straks med klub-navn
+    // Nulstil CSS variabler til default
+    var _root = document.documentElement;
+    _root.style.removeProperty('--navy'); _root.style.removeProperty('--navy-mid');
+    _root.style.removeProperty('--navy-dark'); _root.style.removeProperty('--navy-light');
+    _root.style.removeProperty('--yellow'); _root.style.removeProperty('--text');
+    _root.style.removeProperty('--text-mid');
+    // Opdater header straks med klub-navn og grå cirkel
+    var _hs = document.getElementById('hdr-club-sub');
+    if(_hs) _hs.textContent = 'Spillerstyring';
     var _hn = document.getElementById('hdr-club-name');
     var _crest = document.getElementById('hdr-crest-img');
     if(_hn) _hn.textContent = data.klub_navn || 'Min Klub';
