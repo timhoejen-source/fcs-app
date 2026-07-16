@@ -1681,6 +1681,13 @@ function onLoginSuccess(){
 
 async function doLogout(){
   if(!confirm('Er du sikker på at du vil logge ud?')) return;
+  // Ryd UI inden logout
+  var logEl = document.getElementById('activity-log-list');
+  if(logEl) logEl.innerHTML = '';
+  var userEl = document.getElementById('user-list');
+  if(userEl) userEl.innerHTML = '';
+  var notifEl = document.getElementById('admin-notifications');
+  if(notifEl) notifEl.innerHTML = '';
   var token = localStorage.getItem('fcs-token');
   fetch(AUTH_URL+'?action=logout', {
     method:'POST', credentials:'include',
