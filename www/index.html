@@ -1544,6 +1544,36 @@ let currentRole = '';
 var _allowedTeams = [];
 try{ _allowedTeams = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]'); }catch(e){ _allowedTeams=[]; }
 
+// Startup: tjek PHP-session og gendan currentRole + allowed_teams
+document.addEventListener('DOMContentLoaded', async function(){
+  try{
+    var res = await fetch(AUTH_URL+'?action=check', {credentials:'include', headers:authHeaders()});
+    var data = await res.json();
+    if(data.ok){
+      currentRole = data.role;
+      localStorage.setItem('fcs-auth', data.role);
+      localStorage.setItem('fcs-user', data.username);
+      _allowedTeams = data.allowed_teams || [];
+      localStorage.setItem('fcs-allowed-teams', JSON.stringify(_allowedTeams));
+      if(data.klub_navn) localStorage.setItem('fcs-klub-navn', data.klub_navn);
+      if(data.klub_id)   localStorage.setItem('fcs-klub-id',   data.klub_id);
+      // Skjul login og vis app
+      var lo = document.getElementById('loginOverlay');
+      if(lo) lo.style.display = 'none';
+      applyRole();
+      // Anvend branding
+      var saved = null;
+      try{ var r=localStorage.getItem('fcs-klub-settings'); if(r) saved=JSON.parse(r); }catch(e){}
+      if(saved) klubBrandingApply(saved);
+      else {
+        var hn=document.getElementById('hdr-club-name');
+        if(hn) hn.textContent = data.klub_navn || localStorage.getItem('fcs-klub-navn') || 'Min Klub';
+      }
+      loadFromServer();
+    }
+  }catch(e){ console.warn('Startup check fejl:', e.message); }
+});
+
 
 function dismissWelcome(){
   var wo = document.getElementById('welcomeOverlay');
