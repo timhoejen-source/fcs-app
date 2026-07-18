@@ -5022,6 +5022,7 @@ async function saveUserFromModal(orig, isNew){
       method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({username, password, role, name,
+        email: (document.getElementById('um-email')||{value:''}).value.trim(),
         allowed_teams: Array.from(document.querySelectorAll('#um-teams-list input:checked')).map(function(cb){return cb.value;})
       })
     });
@@ -6205,6 +6206,7 @@ async function submitOpretBruger(){
     klub_id:   document.getElementById('opret-bruger-klub-id').value.trim(),
     navn:      document.getElementById('opret-bruger-navn').value.trim(),
     username:  document.getElementById('opret-bruger-username').value.trim(),
+    email:     (document.getElementById('opret-bruger-email')||{value:''}).value.trim(),
     password:  document.getElementById('opret-bruger-pw').value,
   };
   if(!payload.klub_id||!payload.navn||!payload.username||!payload.password){
@@ -6506,27 +6508,52 @@ function renderExArchiveList(){
 
 
 async function loadNotifications(){
-  var el = document.getElementById('admin-notifications');
+  var el=document.getElementById('admin-notifications');
   if(!el) return;
   try{
-    var res = await fetch(AUTH_URL+'?action=notifications', {credentials:'include', headers:authHeaders()});
-    var data = await res.json();
-    if(!data.ok || !data.notifications || !data.notifications.length){
-      el.innerHTML = '';
-      return;
+    var res=await fetch(AUTH_URL+'?action=list_pending',{credentials:'include',headers:authHeaders()});
+    var txt=await res.text();
+    var data={};
+    try{data=JSON.parse(txt);}catch(e){}
+    if(data.ok && data.pending && data.pending.length){
+      el.innerHTML='<div style="background:#FEF3C7;border:1.5px solid #FDE68A;border-radius:8px;padding:10px;margin-bottom:8px;">'+
+        '<div style="font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">⏳ Afventer godkendelse ('+data.pending.length+')</div>'+
+        data.pending.map(function(p){
+          return '<div style="padding:6px 0;border-bottom:1px solid #FDE68A;">'+
+            '<div style="font-size:11px;font-weight:700;">'+p.name+' <span style="font-weight:400;color:#92400E;">('+p.username+')</span></div>'+
+            (p.email?'<div style="font-size:10px;color:#92400E;">'+p.email+'</div>':'')+
+            '<div style="display:flex;gap:6px;margin-top:5px;">'+
+              '<button onclick="godkendBruger('+p.id+')" style="flex:1;padding:4px;background:#16A34A;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">✅ Godkend</button>'+
+              '<button onclick="afvisBruger('+p.id+')" style="flex:1;padding:4px;background:#dc2626;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">❌ Afvis</button>'+
+            '</div>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+    } else {
+      el.innerHTML='';
     }
-    el.innerHTML = '<div style="background:#FEF3C7;border:1.5px solid #FDE68A;border-radius:8px;padding:10px;margin-bottom:8px;">' +
-      '<div style="font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">🔔 Nye brugere<\/div>' +
-      data.notifications.map(function(n){
-        var d = JSON.parse(n.data||'{}');
-        return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #FDE68A;">' +
-          '<div style="flex:1;font-size:11px;"><strong>'+d.name+'<\/strong> <span style="color:#92400E;">('+d.username+')<\/span><br><span style="font-size:9px;color:#92400E;">Viewer — ændr rolle nedenfor<\/span><\/div>' +
-          '<button onclick="dismissNotification('+n.id+')" style="background:none;border:none;font-size:14px;cursor:pointer;color:#92400E;" title="Afvis">✕<\/button>' +
-        '<\/div>';
-      }).join('') +
-    '<\/div>';
-  }catch(e){ }
+  }catch(e){ el.innerHTML=''; }
 }
+
+async function godkendBruger(id){
+  try{
+    var res=await fetch(AUTH_URL+'?action=godkend_bruger',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({id:id})});
+    var data=await res.json();
+    if(data.ok){ toast('✅ Bruger godkendt'+(data.email_sent?' — email sendt':'')); loadNotifications(); loadUserList(); }
+    else toast('❌ '+data.error);
+  }catch(e){ toast('❌ Serverfejl'); }
+}
+
+async function afvisBruger(id){
+  if(!confirm('Afvis denne brugeranmodning?')) return;
+  try{
+    var res=await fetch(AUTH_URL+'?action=afvis_bruger',{method:'POST',credentials:'include',headers:authHeaders(),body:JSON.stringify({id:id})});
+    var data=await res.json();
+    if(data.ok){ toast('🗑️ Anmodning afvist'); loadNotifications(); }
+    else toast('❌ '+data.error);
+  }catch(e){ toast('❌ Serverfejl'); }
+}
+
 
 async function dismissNotification(id){
   await fetch(AUTH_URL+'?action=dismiss_notification', {
@@ -6798,6 +6825,8 @@ function klubSetupGem(){
       <input id="opret-bruger-navn" type="text" placeholder="Dit fulde navn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
       <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Brugernavn *</label>
       <input id="opret-bruger-username" type="text" placeholder="Vælg et unikt brugernavn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Email</label>
+      <input id="opret-bruger-email" type="email" placeholder="din@email.dk" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit;box-sizing:border-box;">
       <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Adgangskode *</label>
       <input id="opret-bruger-pw" type="password" placeholder="Mindst 6 tegn" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;box-sizing:border-box;">
       <div id="opret-bruger-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
