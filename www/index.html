@@ -828,8 +828,25 @@ window.IS_NATIVE_APP = true;
       </div>
     </div>
 
-    <!-- DBU API -->
-    
+    <!-- DBU Indstillinger -->
+    <div class="sb-section" id="sb-dbu" style="display:none;">
+      <div class="sb-section-hdr" onclick="toggleSection(this)">
+        <span class="sb-section-title">⚙️ DBU API Opsætning</span>
+        <span class="sb-section-chev">▾</span>
+      </div>
+      <div class="sb-section-body">
+        <div style="font-size:10px;color:var(--text-soft);margin-bottom:10px;line-height:1.5;">
+          Registrér klubbens DBU API-nøgle fra <strong>clubservice.dbu.dk</strong>. Hold- og pulje-ID sættes under Stilling-fanen.
+        </div>
+        <label style="font-size:11px;font-weight:700;color:var(--text-mid);display:block;margin-bottom:4px;">DBU API-nøgle</label>
+        <input type="text" id="dbu-api-key-inp"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-size:11px;font-family:monospace;box-sizing:border-box;margin-bottom:8px;"
+          oninput="document.getElementById('dbu-gem-status').textContent=''">
+        <div id="dbu-gem-status" style="font-size:11px;color:#16A34A;min-height:16px;margin-bottom:6px;"></div>
+        <button onclick="dbuGemIndstillinger()" style="width:100%;padding:8px;background:var(--navy);color:var(--yellow);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">💾 Gem API-nøgle</button>
+      </div>
+    </div>
 
     <!-- Import -->
     <div class="sb-section" id="sb-import">
@@ -950,7 +967,14 @@ window.IS_NATIVE_APP = true;
     </div>
 
     <!-- Dokumenter -->
-    <div class="tab-panel" id="tab-docs">
+    <div class="tab-panel" id="tab-timer">
+  <div id="timer-content" style="padding:16px;">
+    <div style="text-align:center;color:var(--text-soft);font-size:13px;padding:40px 0;">
+      Vælg en puljekamp for at starte tidstagning
+    </div>
+  </div>
+</div>
+<div class="tab-panel" id="tab-docs">
       <div style="padding:0;">
 
         <!-- Header -->
@@ -3487,7 +3511,6 @@ function renderBoardSlots(){
   var el = document.getElementById('board-slots');
   if(!el) return;
 
-  // Get udtagne spillere for den valgte kamp
   var udtagne = [];
   if(currentBoard.kampName){
     udtagne = players.filter(function(p){
@@ -3499,30 +3522,43 @@ function renderBoardSlots(){
   }
   udtagne.sort(function(a,b){ return a.name.localeCompare(b.name,'da'); });
 
-  // Combine real players + loanees
   var allBoardPlayers = udtagne.concat(currentBoard.loanees.map(function(l){
     return {id:l.id,name:l.name+(l.team?' ('+l.team+')':''),jersey:'',isLoanee:true};
   }));
-  var opts = '<option value="">– –<\/option>' +
-    allBoardPlayers.map(function(p){ return '<option value="'+p.id+'">'+(p.jersey?'#'+p.jersey+' ':'')+p.name+'<\/option>'; }).join('');
+
+  // Saml alle valgte spillere (på tværs af alle slots)
+  var assignedIds = {};
+  slots.forEach(function(slot){
+    var v = currentBoard.lineup[slot.id];
+    if(v) assignedIds[v] = slot.id;
+  });
 
   el.innerHTML = slots.map(function(slot){
     var val = currentBoard.lineup[slot.id]||'';
+    // Byg options: vis altid den nuværende valgte + alle ikke-valgte i andre slots
+    var opts = '<option value="">– –<\/option>' +
+      allBoardPlayers.filter(function(p){
+        return p.id === val || !assignedIds[p.id];
+      }).map(function(p){
+        return '<option value="'+p.id+'"'+(p.id===val?' selected':'')+'>'
+          +(p.jersey?'#'+p.jersey+' ':'')+p.name+(p.isLoanee?' [LÅN]':'')+
+          '<\/option>';
+      }).join('');
     return '<div class="board-slot">'+
       '<span class="board-slot-label">'+slot.label+'<\/span>'+
-      '<select onchange="boardAssign(\''+slot.id+'\',this.value)">'+opts.replace('value="'+val+'"','value="'+val+'" selected')+
+      '<select onchange="boardAssign(\''+slot.id+'\',this.value)">'+opts+
       '<\/select>'+
     '<\/div>';
   }).join('') +
-  // Subs section
-  '<div style="margin-top:10px;font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Indskiftere<\/div>'+
-  '<div id="board-subs-list">'+renderSubsList()+'<\/div>'+
+  '<div style="margin-top:10px;font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Indskiftere</div>'+
+  '<div id="board-subs-list">'+renderSubsList()+'</div>'+
   '<div style="display:flex;gap:6px;margin-top:4px;">'+
     '<select id="board-sub-add-sel" style="flex:1;font-size:11px;">'+
-      '<option value="">+ Tilføj indskifter<\/option>'+
-      allBoardPlayers.map(function(p){ return '<option value="'+p.id+'">'+(p.jersey?'#'+p.jersey+' ':'')+p.name+'<\/option>'; }).join('')+
+      '<option value="">+ Tilføj indskifter</option>'+
+      allBoardPlayers.filter(function(p){ return !assignedIds[p.id]; })
+        .map(function(p){ return '<option value="'+p.id+'">'+(p.jersey?'#'+p.jersey+' ':'')+p.name+'<\/option>'; }).join('')+
     '<\/select>'+
-    '<button class="btn-add-team" onclick="boardAddSub()" style="padding:6px 10px;font-size:11px;">+<\/button>'+
+    '<button class="btn-add-team" onclick="boardAddSub()" style="padding:6px 10px;font-size:11px;">+</button>'+
   '<\/div>';
 }
 
@@ -3560,6 +3596,7 @@ function boardRemoveSub(i){
 
 function boardAssign(slotId, playerId){
   currentBoard.lineup[slotId] = playerId;
+  renderBoardSlots(); // opdater alle dropdowns så valgte spillere filtreres
   renderPitch();
 }
 
@@ -4414,6 +4451,89 @@ function dbuStatus(msg, isErr){
   if(el){ el.textContent = msg; el.style.color = isErr ? '#dc2626' : 'var(--text-soft)'; }
 }
 
+
+
+// ── DBU Indstillinger ─────────────────────────────────────────────────────────
+var _dbuRaekker = []; // [{id, navn, holdId, puljeId}]
+
+function dbuLoadIndstillinger(){
+  try{
+    var saved = localStorage.getItem('fcs-dbu-raekker');
+    if(saved) _dbuRaekker = JSON.parse(saved);
+  }catch(e){ _dbuRaekker = []; }
+  // Load from appSettings if available
+  if(window._appSettings && window._appSettings.dbuRaekker){
+    _dbuRaekker = window._appSettings.dbuRaekker;
+    localStorage.setItem('fcs-dbu-raekker', JSON.stringify(_dbuRaekker));
+  }
+  dbuRenderRaekker();
+}
+
+function dbuRenderRaekker(){
+  var el = document.getElementById('dbu-raekker-list');
+  if(!el) return;
+  if(!_dbuRaekker.length){
+    el.innerHTML = '<div style="font-size:11px;color:var(--text-soft);padding:4px 0;">Ingen rækker sat op endnu</div>';
+    return;
+  }
+  el.innerHTML = _dbuRaekker.map(function(r,i){
+    return '<div style="background:var(--g50);border:1px solid var(--g200);border-radius:7px;padding:8px;margin-bottom:6px;">'+
+      '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">'+
+        '<span style="font-size:11px;font-weight:700;color:var(--navy);">Række '+(i+1)+'</span>'+
+        '<button onclick="dbuDelRaekke('+i+')" style="background:none;border:none;cursor:pointer;font-size:14px;color:#dc2626;">🗑️</button>'+
+      '</div>'+
+      '<label style="font-size:10px;font-weight:700;color:var(--text-soft);">Navn</label>'+
+      '<input oninput="_dbuRaekker['+i+'].navn=this.value" value="'+escHtml(r.navn||'')+'" placeholder="F.eks. U15 Liga 1" style="width:100%;padding:5px;border:1px solid var(--g200);border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;margin-bottom:4px;">'+
+      '<label style="font-size:10px;font-weight:700;color:var(--text-soft);">Hold-ID (fra DBU URL)</label>'+
+      '<input oninput="_dbuRaekker['+i+'].holdId=this.value" value="'+escHtml(r.holdId||'')+'" placeholder="F.eks. 12345" style="width:100%;padding:5px;border:1px solid var(--g200);border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;margin-bottom:4px;">'+
+      '<label style="font-size:10px;font-weight:700;color:var(--text-soft);">Pulje-ID (fra DBU URL)</label>'+
+      '<input oninput="_dbuRaekker['+i+'].puljeId=this.value" value="'+escHtml(r.puljeId||'')+'" placeholder="F.eks. 67890" style="width:100%;padding:5px;border:1px solid var(--g200);border-radius:5px;font-size:11px;font-family:inherit;box-sizing:border-box;">'+
+    '</div>';
+  }).join('');
+}
+
+function dbuAddRaekke(){
+  _dbuRaekker.push({navn:'', holdId:'', puljeId:''});
+  dbuRenderRaekker();
+}
+
+function dbuDelRaekke(i){
+  _dbuRaekker.splice(i,1);
+  dbuRenderRaekker();
+}
+
+async function dbuGemIndstillinger(){
+  var inp = document.getElementById('dbu-api-key-inp');
+  var key = inp ? inp.value.trim() : '';
+  if(!key){ toast('⚠️ Angiv en API-nøgle'); return; }
+  appSettings.dbuApiKey = key;
+  saveToServer(true);
+  var st = document.getElementById('dbu-gem-status');
+  if(st) st.textContent = '✅ Gemt';
+  toast('✅ DBU API-nøgle gemt');
+}
+
+async function dbuHentStilling(){
+  var statusEl = document.getElementById('dbu-status');
+  if(statusEl) statusEl.textContent = '⏳ Henter...';
+  toggleSidebar();
+  switchTab('stilling');
+  // Opdater DBU_RAEKKER med de gemte rækker
+  if(_dbuRaekker && _dbuRaekker.length){
+    window.DBU_RAEKKER = _dbuRaekker.filter(function(r){ return r.holdId && r.puljeId; }).map(function(r){
+      return {id: r.holdId+'_'+r.puljeId, navn: r.navn||r.holdId, farve:'#1A6EC0', bg:'#EBF2FB', border:'#bfdbfe'};
+    });
+  }
+  try{
+    await dbuProxyLoadAll();
+    if(statusEl) statusEl.textContent = '✅ Hentet';
+  }catch(e){
+    if(statusEl) statusEl.textContent = '❌ Fejl: '+e.message;
+    toast('❌ DBU fejl: '+e.message);
+  }
+}
+
+
 async function dbuFetchTeams(){
   if(currentRole!=='admin'){toast('⚠️ Kun admin kan hente fra DBU');return;}
   dbuStatus('Henter holdliste fra DBU…');
@@ -4467,7 +4587,8 @@ async function dbuProxyLoadAll(){
   for(var i=0; i<DBU_RAEKKER.length; i++){
     var r = DBU_RAEKKER[i];
     try {
-      var res = await fetch(BASE_URL+'dbu_proxy.php?id='+r.id, {credentials:'include'});
+      var dbuId = r.holdId && r.puljeId ? r.holdId+'_'+r.puljeId : r.id;
+      var res = await fetch(BASE_URL+'dbu_proxy.php?id='+dbuId, {credentials:'include'});
       var data = await res.json();
       html += renderDbuRaekke(r, data);
     } catch(e) {
@@ -4495,7 +4616,8 @@ function renderDbuRaekke(r, data){
   if(data.hold && data.hold.length){
     holdHtml = '<div style="display:flex;flex-direction:column;gap:4px;">' +
       data.hold.map(function(h, i){
-        var isFCS = h.toLowerCase().indexOf('skanderborg') !== -1;
+        var _kn = (localStorage.getItem('fcs-klub-navn')||'').toLowerCase();
+        var isFCS = _kn && h.toLowerCase().indexOf(_kn.split(' ')[0]) !== -1;
         return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:'+(isFCS?r.bg:'var(--g50)')+';border-radius:6px;border:1px solid '+(isFCS?r.border:'var(--g200)')+';">'+
           '<span style="font-size:10px;font-weight:700;color:var(--text-soft);min-width:16px;">'+(i+1)+'<\/span>'+
           '<span style="font-size:12px;font-weight:'+(isFCS?'700':'400')+';color:'+(isFCS?r.farve:'var(--navy)')+';">'+htmlEsc(h)+(isFCS?' ⭐':'')+'<\/span>'+
@@ -5136,7 +5258,12 @@ document.addEventListener('click', function(e){
   if(hdr){ toggleKampDetail(hdr.getAttribute('data-ktoggle')); return; }
 
   // Toggle result form
-  var resToggle = e.target.closest('[data-restoggle]');
+  // Timer modal openers
+  var openTimer=e.target.closest('[data-opentimer]');
+  if(openTimer){ openKampTimerModal(openTimer.getAttribute('data-opentimer')); return; }
+  var tmAdj=e.target.closest('[data-tmadj]');
+  if(tmAdj){ _tmAdjust(tmAdj.getAttribute('data-tmadj'),tmAdj.getAttribute('data-tmpid'),parseInt(tmAdj.getAttribute('data-tmdelta'))); return; }
+    var resToggle = e.target.closest('[data-restoggle]');
   if(resToggle){
     var id = resToggle.getAttribute('data-restoggle');
     var form = document.getElementById('kres-'+id);
@@ -5298,6 +5425,143 @@ function removeCupLoanee(cupId, holdId, loaneeId){
   if(!hold) return;
   hold.loanees=hold.loanees.filter(function(l){ return l.id!==loaneeId; });
   saveCups(); renderCupBody(cupId);
+}
+
+
+// ── Cup puljekamp HTML builder ────────────────────────────────────────────────
+var matchTimer = { type:'', cupId:'', holdId:'', kampId:'', goals:{}, stats:{} };
+
+function buildCupPuljeHtml(cupId, hold){
+  var canEdit = ['admin','trainer'].includes(currentRole);
+  var kampe = (hold.puljeKampe || []);
+  var html = '<div style="margin-top:8px;">';
+  html += '<div style="font-size:9px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">📋 Puljekampe</div>';
+
+  if(kampe.length === 0){
+    html += '<div style="font-size:11px;color:var(--text-soft);padding:6px 0;">Ingen puljekampe endnu</div>';
+  } else {
+    kampe.forEach(function(k){
+      var goalsArr = Object.values(k.goals||{});
+      var mål = goalsArr.reduce(function(s,v){return s+(v||0);},0);
+      var totalMin = Object.values(k.minutes||{}).reduce(function(s,v){return s+(v||0);},0);
+      html += '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--g100);">';
+      html += '<div style="flex:1;">';
+      html += '<div style="font-size:11px;font-weight:600;">'+escHtml(k.modstander||'?')+'</div>';
+      html += '<div style="font-size:10px;color:var(--text-soft);">';
+      if(k.dato) html += k.dato+' ';
+      if(k.resultat) html += '<strong>'+escHtml(k.resultat)+'</strong> ';
+      html += '⚽'+mål+' · ⏱'+Math.round(totalMin/60||0)+'min';
+      html += '</div></div>';
+      if(canEdit){
+        html += '<button data-startkamptimer="'+k.id+'" data-cupid="'+cupId+'" data-holdid="'+hold.id+'" style="padding:3px 7px;background:var(--navy);color:var(--yellow);border:none;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;">▶</button>';
+        html += '<button data-delpuljekamp="'+k.id+'" data-cupid="'+cupId+'" data-holdid="'+hold.id+'" style="padding:3px 7px;background:none;border:1px solid #fecaca;border-radius:5px;font-size:10px;color:#dc2626;cursor:pointer;">🗑️</button>';
+      }
+      html += '</div>';
+    });
+  }
+
+  if(canEdit){
+    html += '<div id="addpkform-'+hold.id+'" style="margin-top:8px;display:none;">';
+    html += '<input id="pkmod-'+hold.id+'" type="text" placeholder="Modstander" style="width:100%;padding:6px;border:1.5px solid var(--g200);border-radius:6px;font-size:11px;font-family:inherit;box-sizing:border-box;margin-bottom:4px;">';
+    html += '<input id="pkdat-'+hold.id+'" type="date" style="width:100%;padding:6px;border:1.5px solid var(--g200);border-radius:6px;font-size:11px;font-family:inherit;box-sizing:border-box;margin-bottom:4px;">';
+    html += '<input id="pkres-'+hold.id+'" type="text" placeholder="Resultat (f.eks. 2-1)" style="width:100%;padding:6px;border:1.5px solid var(--g200);border-radius:6px;font-size:11px;font-family:inherit;box-sizing:border-box;margin-bottom:6px;">';
+    html += '<div style="display:flex;gap:4px;">';
+    html += '<button data-savepkamp="'+hold.id+'" data-cupid="'+cupId+'" style="flex:1;padding:5px;background:var(--navy);color:var(--yellow);border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Gem</button>';
+    html += '<button data-cancelpkamp="'+hold.id+'" style="padding:5px 8px;background:none;border:1px solid var(--g200);border-radius:6px;font-size:11px;cursor:pointer;">✕</button>';
+    html += '</div></div>';
+    html += '<button data-addpkamp-cup="'+hold.id+'" data-cupid="'+cupId+'" style="margin-top:6px;padding:4px 10px;background:none;border:1.5px solid var(--navy);border-radius:6px;font-size:11px;color:var(--navy);font-weight:700;cursor:pointer;width:100%;">+ Tilføj puljekamp</button>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function getCupHold(cupId, holdId){
+  var cup = cups.find(function(c){ return c.id===cupId; });
+  if(!cup) return null;
+  return (cup.holds||[]).find(function(h){ return h.id===holdId; }) || null;
+}
+
+
+function renderMatchTimer(hold, kamp){
+  var el = document.getElementById('timer-content');
+  if(!el) return;
+  var timerBtn = document.getElementById('tab-timer-btn');
+  if(timerBtn) timerBtn.style.display = '';
+  var selPlayers = (hold.players||[]);
+  var playerRows = players.filter(function(p){ return selPlayers.includes(p.id); })
+    .sort(function(a,b){ return a.name.localeCompare(b.name,'da'); })
+    .map(function(p){
+      var min = ((kamp.minutes||{})[p.id])||0;
+      var goals = ((kamp.goals||{})[p.id])||0;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--g100);">'+
+        '<div style="flex:1;font-size:13px;font-weight:600;">'+(p.jersey?'<strong>#'+p.jersey+'</strong> ':'')+p.name+'</div>'+
+        '<div style="display:flex;align-items:center;gap:4px;">'+
+          '<button data-adj="'+p.id+'" data-type="minutes" data-delta="-60" style="width:28px;height:28px;border:1px solid var(--g200);border-radius:5px;background:none;cursor:pointer;font-size:14px;">−</button>'+
+          '<span id="min-'+p.id+'" style="min-width:36px;text-align:center;font-size:12px;font-weight:700;">'+Math.round(min/60)+'min</span>'+
+          '<button data-adj="'+p.id+'" data-type="minutes" data-delta="60" style="width:28px;height:28px;border:1px solid var(--g200);border-radius:5px;background:none;cursor:pointer;font-size:14px;">+</button>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:4px;">'+
+          '<button data-adj="'+p.id+'" data-type="goals" data-delta="-1" style="width:28px;height:28px;border:1px solid var(--g200);border-radius:5px;background:none;cursor:pointer;font-size:14px;">−</button>'+
+          '<span id="goal-'+p.id+'" style="min-width:24px;text-align:center;font-size:12px;font-weight:700;">⚽'+goals+'</span>'+
+          '<button data-adj="'+p.id+'" data-type="goals" data-delta="1" style="width:28px;height:28px;border:1px solid var(--g200);border-radius:5px;background:none;cursor:pointer;font-size:14px;">+</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  el.innerHTML =
+    '<div style="background:var(--navy);color:var(--yellow);padding:12px 16px;border-radius:10px;margin-bottom:16px;text-align:center;">'+
+      '<div style="font-size:11px;font-weight:700;opacity:.8;text-transform:uppercase;letter-spacing:.08em;">Puljekamp</div>'+
+      '<div style="font-size:18px;font-weight:800;margin:4px 0;">'+escHtml(kamp.modstander||'?')+'</div>'+
+      (kamp.dato?'<div style="font-size:11px;opacity:.7;">'+kamp.dato+'</div>':'')+
+    '</div>'+
+    '<div style="margin-bottom:12px;">'+
+      '<label style="font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.06em;">Resultat</label>'+
+      '<input id="kamp-resultat-input" type="text" value="'+escHtml(kamp.resultat||'')+'" placeholder="2-1" style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-top:4px;">'+
+    '</div>'+
+    (selPlayers.length?
+      '<div style="font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Spillere</div>'+playerRows
+      :'<div style="font-size:12px;color:var(--text-soft);padding:20px 0;text-align:center;">Ingen spillere tilmeldt dette hold</div>')+
+    '<button data-gemtimerstats="1" style="width:100%;padding:12px;background:var(--navy);color:var(--yellow);border:none;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;margin-top:16px;font-family:inherit;">💾 Gem statistik</button>';
+}
+
+
+function adjCupStat(playerId, type, delta){
+  var cup = cups.find(function(x){ return x.id===matchTimer.cupId; });
+  var hold = getCupHold(matchTimer.cupId, matchTimer.holdId);
+  var kamp = hold?(hold.puljeKampe||[]).find(function(k){return k.id===matchTimer.kampId;}):null;
+  if(!kamp) return;
+  if(!kamp.minutes) kamp.minutes={};
+  if(!kamp.goals) kamp.goals={};
+  if(type==='minutes'){
+    kamp.minutes[playerId] = Math.max(0,(kamp.minutes[playerId]||0)+delta);
+    var el=document.getElementById('min-'+playerId);
+    if(el) el.textContent=Math.round(kamp.minutes[playerId]/60)+'min';
+  } else {
+    kamp.goals[playerId] = Math.max(0,(kamp.goals[playerId]||0)+delta);
+    var el2=document.getElementById('goal-'+playerId);
+    if(el2) el2.textContent='⚽'+kamp.goals[playerId];
+  }
+}
+
+function gemCupTimerStats(){
+  var hold = getCupHold(matchTimer.cupId, matchTimer.holdId);
+  var kamp = hold?(hold.puljeKampe||[]).find(function(k){return k.id===matchTimer.kampId;}):null;
+  if(!kamp){toast('⚠️ Kamp ikke fundet');return;}
+  var resInput = document.getElementById('kamp-resultat-input');
+  if(resInput) kamp.resultat = resInput.value.trim();
+  saveCups();
+  refreshCupPuljeWrap(matchTimer.cupId, matchTimer.holdId);
+  toast('✅ Statistik gemt');
+  switchTab('cup');
+  var timerBtn = document.getElementById('tab-timer-btn');
+  if(timerBtn) timerBtn.style.display = 'none';
+}
+
+function refreshCupPuljeWrap(cupId, holdId){
+  var el = document.getElementById('cpuljewrap-'+holdId);
+  if(!el) return;
+  var cup = cups.find(function(c){ return c.id===cupId; });
+  var hold = getCupHold(cupId, holdId);
+  if(cup && hold) el.innerHTML = buildCupPuljeHtml(cupId, hold);
 }
 
 function renderCupHold(cup, hold){
@@ -5525,11 +5789,11 @@ function renderCupBody(cupId){
         : '<button class="btn-export" style="width:auto;padding:8px 16px;" data-exportcupguest="'+cupId+'">📄 Eksporter oversigt<\/button>')+
       (isAdmin?'<button class="cup-del-btn" data-delcup="'+cupId+'">🗑️ Slet cup<\/button>':'')+
     '<\/div>';
-  // Attach pulje events
-  cup.holds.forEach(function(hold){
-    var el=document.getElementById('cpuljewrap-'+hold.id);
-    if(el) attachCupPuljeEvents(el, cup.id, hold.id);
-  });
+
+
+
+
+
 }
 
 function renderCups(){
@@ -5726,6 +5990,71 @@ document.addEventListener('click', function(e){
     return;
   }
   // Delete cup
+  // Add puljekamp form toggle
+  var addPk=e.target.closest('[data-addpkamp-cup]');
+  if(addPk){
+    var formEl=document.getElementById('addpkform-'+addPk.getAttribute('data-addpkamp-cup'));
+    if(formEl) formEl.style.display=formEl.style.display==='none'?'':'none';
+    return;
+  }
+  // Cancel puljekamp form
+  var cancelPk=e.target.closest('[data-cancelpkamp]');
+  if(cancelPk){
+    var formEl2=document.getElementById('addpkform-'+cancelPk.getAttribute('data-cancelpkamp'));
+    if(formEl2) formEl2.style.display='none';
+    return;
+  }
+  // Save puljekamp
+  var savePk=e.target.closest('[data-savepkamp]');
+  if(savePk){
+    var holdId2=savePk.getAttribute('data-savepkamp');
+    var cupId2=savePk.getAttribute('data-cupid');
+    var modst=(document.getElementById('pkmod-'+holdId2)||{value:''}).value.trim();
+    var dato=(document.getElementById('pkdat-'+holdId2)||{value:''}).value;
+    var res=(document.getElementById('pkres-'+holdId2)||{value:''}).value.trim();
+    if(!modst){toast('⚠️ Udfyld modstander');return;}
+    var cup2=cups.find(function(x){return x.id===cupId2;});
+    var hold2=getCupHold(cupId2,holdId2);
+    if(!cup2||!hold2){toast('⚠️ Hold ikke fundet');return;}
+    if(!hold2.puljeKampe) hold2.puljeKampe=[];
+    hold2.puljeKampe.push({id:uid(),modstander:modst,dato:dato,resultat:res,goals:{},minutes:{}});
+    saveCups();
+    refreshCupPuljeWrap(cupId2,holdId2);
+    toast('✅ Puljekamp tilføjet');
+    return;
+  }
+  // Delete puljekamp
+  var delPk=e.target.closest('[data-delpuljekamp]');
+  if(delPk){
+    if(!confirm('Slet denne puljekamp?')) return;
+    var kampId2=delPk.getAttribute('data-delpuljekamp');
+    var cupId3=delPk.getAttribute('data-cupid');
+    var holdId3=delPk.getAttribute('data-holdid');
+    var hold3=getCupHold(cupId3,holdId3);
+    if(hold3&&hold3.puljeKampe){
+      hold3.puljeKampe=hold3.puljeKampe.filter(function(k){return k.id!==kampId2;});
+      saveCups(); refreshCupPuljeWrap(cupId3,holdId3); toast('🗑️ Puljekamp slettet');
+    }
+    return;
+  }
+  // Start kamp timer for cup
+  var startTimer=e.target.closest('[data-startkamptimer]');
+  if(startTimer){
+    var kampId3=startTimer.getAttribute('data-startkamptimer');
+    var cupId4=startTimer.getAttribute('data-cupid');
+    var holdId4=startTimer.getAttribute('data-holdid');
+    var hold4=getCupHold(cupId4,holdId4);
+    var kamp4=hold4?(hold4.puljeKampe||[]).find(function(k){return k.id===kampId3;}):null;
+    if(!kamp4){toast('⚠️ Kamp ikke fundet');return;}
+    openCupTimerModal(cupId4,holdId4,kampId3);
+    return;
+  }
+  // Timer stat adjust
+  var adj=e.target.closest('[data-adj]');
+  if(adj){ adjCupStat(adj.getAttribute('data-adj'),adj.getAttribute('data-type'),parseInt(adj.getAttribute('data-delta'))); return; }
+  // Gem timer stats
+  var gemTimer=e.target.closest('[data-gemtimerstats]');
+  if(gemTimer){ gemCupTimerStats(); return; }
   var delCup=e.target.closest('[data-delcup]');
   if(delCup){ deleteCup(delCup.getAttribute('data-delcup')); return; }
 });
@@ -6775,6 +7104,300 @@ function klubSetupGem(){
   }
 }
 
+
+// ── Timer Modal ────────────────────────────────────────────────────
+var _tmKampId=null, _tmIsCup=false, _tmCupId=null, _tmHoldId=null;
+
+function _tmField(type,pid,val,label){
+  return '<div style="background:var(--g50);border:1px solid var(--g200);border-radius:7px;padding:6px;text-align:center;">'+
+    '<div style="font-size:9px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">'+label+'</div>'+
+    '<div style="display:flex;align-items:center;justify-content:center;gap:6px;">'+
+      '<button data-tmadj="'+type+'" data-tmpid="'+pid+'" data-tmdelta="-1" style="width:26px;height:26px;border:1px solid var(--g300);border-radius:5px;background:#fff;cursor:pointer;font-size:16px;line-height:1;font-family:inherit;">−</button>'+
+      '<span id="tmv-'+type+'-'+pid+'" style="min-width:30px;text-align:center;font-size:14px;font-weight:700;">'+val+'</span>'+
+      '<button data-tmadj="'+type+'" data-tmpid="'+pid+'" data-tmdelta="1" style="width:26px;height:26px;border:1px solid var(--g300);border-radius:5px;background:#fff;cursor:pointer;font-size:16px;line-height:1;font-family:inherit;">+</button>'+
+    '</div></div>';
+}
+
+function _tmAdjust(type,pid,delta){
+  var el=document.getElementById('tmv-'+type+'-'+pid);
+  if(!el) return;
+  el.textContent=Math.max(0,(parseInt(el.textContent)||0)+delta);
+}
+
+// ──────────────────────────────────────────────────────────────────
+
+
+// ═══════════════════════════════════════════════════════════════════
+// AKTIV TIMER — kører i baggrunden, modal viser live-tal
+// ═══════════════════════════════════════════════════════════════════
+var _timerCtx=null, _timerPlayers=[], _timerStarters=[], _timerState={},
+    _timerStats={},   // {pid: {maal,skud,assists,afl,vende}}
+    _timerInterval=null, _timerModalOpen=false;
+
+// ── Hent startere fra board-opstilling ─────────────────────────────
+function _getBoardStartersAndSubs(kampName){
+  var saved=(window._boardLineups||{})[kampName];
+  if(saved&&saved.lineup&&!saved[1]) saved[1]=saved;
+  var h1=saved&&saved[1];
+  return {starterIds:h1?Object.values(h1.lineup||{}).filter(Boolean):[],subIds:h1?(h1.subs||[]):[]};
+}
+
+// ── Åbn timer modal — kamp ──────────────────────────────────────────
+function openKampTimerModal(kampId){
+  var kamp=matches.find(function(k){return k.id===kampId;});
+  if(!kamp){toast('⚠️ Kamp ikke fundet');return;}
+  if(!_timerCtx||_timerCtx.kampId!==kampId){
+    _timerCtx={type:'match',kampId:kampId,kampName:kamp.name,resultat:kamp.resultat||''};
+    // Alle udtagne til kampen, sorteret alfabetisk
+    var udtagne=players.filter(function(p){
+      var m=((p.stats||{}).matches||[]).find(function(m){return m.name===kamp.name;});
+      return m&&m.udtaget==='ja';
+    }).sort(function(a,b){return a.name.localeCompare(b.name,'da');});
+    _timerPlayers=udtagne;
+    // Default: alle markeret som startere (brugeren afkrydser selv hvem der starter)
+    _timerStarters=udtagne.map(function(p){return p.id;});
+    _timerState={};_timerStats={};
+    _timerPlayers.forEach(function(p){
+      var sv=((p.stats||{}).kampStats||{})[kamp.name]||{};
+      _timerState[p.id]={running:false,accumulated:(sv.min||0)*60000,startedAt:null};
+      _timerStats[p.id]={maal:sv.maal||0,skud:sv.skud||0,assists:sv.assists||0,afl:sv.afl||0,vende:sv.vende||0};
+    });
+  }
+  _renderTimerModal(kamp.name||kamp.opponent||'Kamp',
+    kamp.date?new Date(kamp.date).toLocaleDateString('da-DK',{day:'numeric',month:'short'}):'');
+}
+
+// ── Åbn timer modal — cup ───────────────────────────────────────────
+// Cup: radio-markering vælger hvem der er startere
+function openCupTimerModal(cupId,holdId,kampId){
+  var hold=getCupHold(cupId,holdId);
+  var kamp=hold?(hold.puljeKampe||[]).find(function(k){return k.id===kampId;}):null;
+  if(!kamp){toast('⚠️ Cup-kamp ikke fundet');return;}
+  if(!_timerCtx||_timerCtx.kampId!==kampId){
+    _timerCtx={type:'cup',kampId:kampId,cupId:cupId,holdId:holdId,resultat:kamp.resultat||''};
+    var allIds=hold.players||[];
+    _timerPlayers=allIds.map(function(pid){return players.find(function(p){return p.id===pid;});}).filter(Boolean);
+    // Default: første 11 er startere
+    _timerStarters=_timerPlayers.slice(0,11).map(function(p){return p.id;});
+    _timerState={};_timerStats={};
+    _timerPlayers.forEach(function(p){
+      var sv=(kamp.stats||{})[p.id]||{};
+      _timerState[p.id]={running:false,accumulated:((kamp.minutes||{})[p.id]||0)*60000,startedAt:null};
+      _timerStats[p.id]={maal:(kamp.goals||{})[p.id]||sv.maal||0,skud:sv.skud||0,assists:sv.assists||0,afl:sv.afl||0,vende:sv.vende||0};
+    });
+  }
+  _renderTimerModal(kamp.modstander||'Puljekamp',kamp.dato||'');
+}
+
+// ── Render modal ────────────────────────────────────────────────────
+function _renderTimerModal(title,sub){
+  var el=document.getElementById('timer-modal-overlay');
+  if(!el) return;
+  document.getElementById('timer-modal-title').textContent='⏱️ '+title;
+  document.getElementById('timer-modal-sub').textContent=sub;
+  var resEl=document.getElementById('timer-modal-resultat');
+  if(resEl&&_timerCtx) resEl.value=_timerCtx.resultat||'';
+  _buildTimerPlayerList();
+  el.style.display='flex';
+  _timerModalOpen=true;
+  if(_timerInterval) clearInterval(_timerInterval);
+  _timerInterval=setInterval(_tickTimerModal,1000);
+}
+
+// ── Byg spillerliste ────────────────────────────────────────────────
+function _buildTimerPlayerList(){
+  var wrap=document.getElementById('timer-modal-players');
+  if(!wrap) return;
+  var isCup=_timerCtx&&_timerCtx.type==='cup';
+
+  function mkStats(p){
+    var st=_timerStats[p.id]||{};
+    function fld(key,label){
+      return '<div style="text-align:center;">'
+        +'<div style="font-size:8px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:2px;">'+label+'</div>'
+        +'<div style="display:flex;align-items:center;gap:2px;">'
+          +'<button data-sAdj="'+key+'" data-sPid="'+p.id+'" data-sDelta="-1" style="width:22px;height:22px;border:1px solid var(--g200);border-radius:4px;background:#fff;cursor:pointer;font-size:14px;line-height:1;">−</button>'
+          +'<span id="ts-'+key+'-'+p.id+'" style="min-width:24px;text-align:center;font-size:12px;font-weight:700;">'+(st[key]||0)+'</span>'
+          +'<button data-sAdj="'+key+'" data-sPid="'+p.id+'" data-sDelta="1" style="width:22px;height:22px;border:1px solid var(--g200);border-radius:4px;background:#fff;cursor:pointer;font-size:14px;line-height:1;">+</button>'
+        +'</div></div>';
+    }
+    return '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--g50);border-radius:6px;padding:6px;margin-top:4px;">'
+      +fld('maal','⚽ Mål')+fld('skud','🎯 Skud')+fld('assists','🤝 Ass.')+fld('afl','📤 Afl.')+fld('vende','🔄 Vende')
+      +'</div>';
+  }
+
+  function mkRow(p){
+    var st=_timerState[p.id]||{running:false,accumulated:0,startedAt:null};
+    var ms=st.accumulated+(st.running?(Date.now()-st.startedAt):0);
+    var mins=Math.floor(ms/60000),secs=Math.floor((ms%60000)/1000);
+    var hasTime=ms>=1000;
+    var timeStr=mins+':'+(secs<10?'0':'')+secs;
+    var dotColor=st.running?'#16A34A':(hasTime?'#F5C400':'#D1D5DB');
+    var dotAnim=st.running?' animation:pulse-green 1s infinite;':'';
+    var dot='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+dotColor+';flex-shrink:0;'+dotAnim+'"></span>';
+    var actionBtn=st.running
+      ?'<button data-timer-stop="'+p.id+'" style="padding:4px 8px;background:#FEE2E2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">⏹</button>'
+      :'<button data-timer-start="'+p.id+'" style="padding:4px 8px;background:#DCFCE7;color:#16A34A;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">▶</button>';
+    var delBtn=hasTime?'<button data-timer-del="'+p.id+'" title="Slet tid" style="padding:4px 6px;background:#fff;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;font-size:10px;cursor:pointer;">🗑</button>':'';
+    var isChecked=_timerStarters.indexOf(p.id)!==-1;
+    var checkbox='<input type="checkbox" data-timer-radio="'+p.id+'" '+(isChecked?'checked':'')
+      +' style="width:16px;height:16px;accent-color:var(--navy);cursor:pointer;flex-shrink:0;" title="Marker til samlet start">';
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--g100);">'
+      +'<div style="display:flex;align-items:center;gap:6px;">'
+        +checkbox+dot
+        +'<div style="flex:1;min-width:0;">'+(p.jersey?'<strong style="font-size:11px;">#'+p.jersey+'</strong> ':'')+p.name+'</div>'
+        +'<span id="tmr-'+p.id+'" style="font-size:13px;font-weight:700;font-family:monospace;min-width:38px;text-align:right;color:'+(st.running?'#16A34A':(hasTime?'#854D0E':'var(--g400)'))+';">'+timeStr+'</span>'
+        +'<div style="display:flex;gap:3px;">'+actionBtn+delBtn+'</div>'
+      +'</div>'
+      +mkStats(p)
+      +'</div>';
+  }
+
+  var checkedCount=_timerStarters.length;
+  var html='<div style="font-size:10px;color:var(--text-soft);margin-bottom:8px;background:var(--g50);border-radius:6px;padding:6px 8px;">☑️ Markér de spillere du vil starte samlet — tryk <strong>▶ Start markerede</strong></div>';
+  html+='<div style="display:flex;gap:6px;margin-bottom:12px;">'
+    +'<button onclick="_timerStartAll()" style="flex:1;padding:9px;background:#0A2342;color:#F5C400;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">▶ Start markerede ('+checkedCount+')</button>'
+    +'<button onclick="_timerPauseAll()" style="flex:1;padding:9px;background:#FEF9C3;color:#854D0E;border:1.5px solid #F5C400;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">⏸ Pause alle</button>'
+    +'</div>';
+  if(_timerPlayers.length){
+    html+='<div style="font-size:9px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Udtagne spillere ('+_timerPlayers.length+')</div>';
+    html+=_timerPlayers.map(function(p){return mkRow(p);}).join('');
+  } else {
+    html+='<div style="text-align:center;padding:20px;color:var(--text-soft);font-size:12px;">Ingen udtagne spillere.<br><small>Udtag spillere under '+(isCup?'Cup':'Kampe')+'-fanen først.</small></div>';
+  }
+  wrap.innerHTML=html;
+}
+
+// ── Tick ────────────────────────────────────────────────────────────
+function _tickTimerModal(){
+  if(!_timerModalOpen) return;
+  _timerPlayers.forEach(function(p){
+    var st=_timerState[p.id]; if(!st||!st.running) return;
+    var ms=st.accumulated+(Date.now()-st.startedAt);
+    var el=document.getElementById('tmr-'+p.id);
+    if(el) el.textContent=Math.floor(ms/60000)+':'+(Math.floor((ms%60000)/1000)<10?'0':'')+Math.floor((ms%60000)/1000);
+  });
+}
+
+// ── Individuel timer start/stop/del ────────────────────────────────
+function _timerStart(pid){var st=_timerState[pid];if(!st||st.running)return;st.running=true;st.startedAt=Date.now();_buildTimerPlayerList();}
+function _timerStop(pid){var st=_timerState[pid];if(!st||!st.running)return;st.accumulated+=Date.now()-st.startedAt;st.running=false;st.startedAt=null;_buildTimerPlayerList();}
+function _timerDel(pid){if(!confirm('Slet gemt spilletid?'))return;var st=_timerState[pid];if(!st)return;st.running=false;st.startedAt=null;st.accumulated=0;_buildTimerPlayerList();}
+
+// ── Stats adjust ────────────────────────────────────────────────────
+function _timerStatAdj(key,pid,delta){
+  if(!_timerStats[pid]) _timerStats[pid]={maal:0,skud:0,assists:0,afl:0,vende:0};
+  _timerStats[pid][key]=Math.max(0,(_timerStats[pid][key]||0)+delta);
+  var el=document.getElementById('ts-'+key+'-'+pid);
+  if(el) el.textContent=_timerStats[pid][key];
+}
+
+// ── Samlet start (starters) / pause alle ────────────────────────────
+function _timerStartAll(){
+  // Læs checkboxes og opdater _timerStarters
+  _timerStarters=[];
+  _timerPlayers.forEach(function(p){
+    var cb=document.querySelector('[data-timer-radio="'+p.id+'"]');
+    if(cb&&cb.checked) _timerStarters.push(p.id);
+  });
+  _timerStarters.forEach(function(pid){
+    var st=_timerState[pid]; if(st&&!st.running){st.running=true;st.startedAt=Date.now();}
+  });
+  _buildTimerPlayerList();
+}
+function _timerPauseAll(){
+  _timerPlayers.forEach(function(p){
+    var st=_timerState[p.id]; if(st&&st.running){st.accumulated+=Date.now()-st.startedAt;st.running=false;st.startedAt=null;}
+  });
+  _buildTimerPlayerList();
+}
+
+// ── Luk modal (timer kører videre) ──────────────────────────────────
+function closeTimerModal(){
+  _timerModalOpen=false;
+  if(_timerInterval){clearInterval(_timerInterval);_timerInterval=null;}
+  var el=document.getElementById('timer-modal-overlay');
+  if(el) el.style.display='none';
+  var resEl=document.getElementById('timer-modal-resultat');
+  if(resEl&&_timerCtx) _timerCtx.resultat=resEl.value.trim();
+}
+
+// ── Gem alt ─────────────────────────────────────────────────────────
+function gemTimerModalStats(){
+  // Stop alle kørende timers
+  _timerPlayers.forEach(function(p){
+    var st=_timerState[p.id];
+    if(st&&st.running){st.accumulated+=Date.now()-st.startedAt;st.running=false;st.startedAt=null;}
+  });
+  var resultat=(document.getElementById('timer-modal-resultat')||{}).value||'';
+  if(!_timerCtx){toast('⚠️ Ingen aktiv kamp');return;}
+
+  if(_timerCtx.type==='cup'){
+    var hold=getCupHold(_timerCtx.cupId,_timerCtx.holdId);
+    var kamp=hold?(hold.puljeKampe||[]).find(function(k){return k.id===_timerCtx.kampId;}):null;
+    if(!kamp){toast('⚠️ Cup-kamp ikke fundet');return;}
+    if(resultat) kamp.resultat=resultat;
+    if(!kamp.minutes) kamp.minutes={};
+    if(!kamp.goals) kamp.goals={};
+    if(!kamp.stats) kamp.stats={};
+    // Gem til kamp-objekt
+    _timerPlayers.forEach(function(p){
+      var mins=Math.round((_timerState[p.id]||{accumulated:0}).accumulated/60000);
+      kamp.minutes[p.id]=mins;
+      kamp.goals[p.id]=(_timerStats[p.id]||{}).maal||0;
+      kamp.stats[p.id]=_timerStats[p.id]||{};
+    });
+    // Gem OGSÅ til spillerkortet kampStats (med cupnavn som nøgle)
+    var cup=cups.find(function(cu){return cu.id===_timerCtx.cupId;});
+    var cupNavn=cup?cup.name:'Cup';
+    var kampKey=cupNavn+' · '+(_timerCtx.kampName||kamp.modstander||'kamp');
+    _timerPlayers.forEach(function(p){
+      if(!p.stats) p.stats={};
+      if(!p.stats.kampStats) p.stats.kampStats={};
+      var ts=_timerStats[p.id]||{};
+      var mins=Math.round((_timerState[p.id]||{accumulated:0}).accumulated/60000);
+      p.stats.kampStats[kampKey]={
+        min:mins, maal:ts.maal||0, skud:ts.skud||0,
+        assists:ts.assists||0, afl:ts.afl||0, vende:ts.vende||0
+      };
+    });
+    saveCups(); saveAll(); render(); renderCups();
+    toast('✅ Cup spilletid og stats gemt');
+  } else {
+    var kamp2=matches.find(function(k){return k.id===_timerCtx.kampId;});
+    if(!kamp2){toast('⚠️ Kamp ikke fundet');return;}
+    if(resultat) kamp2.resultat=resultat;
+    var kampName=kamp2.name||'';
+    _timerPlayers.forEach(function(p){
+      if(!p.stats) p.stats={};
+      if(!p.stats.kampStats) p.stats.kampStats={};
+      if(!p.stats.kampStats[kampName]) p.stats.kampStats[kampName]={};
+      var ks=p.stats.kampStats[kampName];
+      var ts=_timerStats[p.id]||{};
+      ks.min=Math.round((_timerState[p.id]||{accumulated:0}).accumulated/60000);
+      ks.maal=ts.maal||0; ks.skud=ts.skud||0; ks.assists=ts.assists||0;
+      ks.afl=ts.afl||0; ks.vende=ts.vende||0;
+    });
+    saveAll(); render(); renderKampe(); saveToServer(true);
+    toast('✅ Spilletid og stats gemt');
+  }
+  _timerCtx=null;_timerState={};_timerPlayers=[];_timerStarters=[];_timerStats={};
+  closeTimerModal();
+}
+
+// ── Click delegation ────────────────────────────────────────────────
+document.addEventListener('click',function(e){
+  var s=e.target.closest('[data-timer-start]');  if(s){_timerStart(s.getAttribute('data-timer-start'));return;}
+  var t=e.target.closest('[data-timer-stop]');   if(t){_timerStop(t.getAttribute('data-timer-stop'));return;}
+  var d=e.target.closest('[data-timer-del]');    if(d){_timerDel(d.getAttribute('data-timer-del'));return;}
+  var a=e.target.closest('[data-sAdj]');
+  if(a){_timerStatAdj(a.getAttribute('data-sAdj'),a.getAttribute('data-sPid'),parseInt(a.getAttribute('data-sDelta')));return;}
+});
+(function(){if(document.getElementById('tps'))return;var s=document.createElement('style');s.id='tps';
+s.textContent='@keyframes pulse-green{0%,100%{opacity:1}50%{opacity:.3}}';document.head.appendChild(s);})();
+// ═══════════════════════════════════════════════════════════════════
+
+
 </script>
 
 <!-- Opret ny klub overlay -->
@@ -6890,5 +7513,26 @@ function klubSetupGem(){
   </div>
 </div>
 
+
+<!-- Timer Modal (kampe + cup) -->
+<div id="timer-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)closeTimerModal()">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:0 0 24px;">
+    <div style="background:var(--navy);padding:14px 16px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1;">
+      <div>
+        <div id="timer-modal-title" style="font-size:14px;font-weight:800;color:var(--yellow);"></div>
+        <div id="timer-modal-sub" style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;"></div>
+      </div>
+      <button onclick="closeTimerModal()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:20px;cursor:pointer;padding:4px 8px;">✕</button>
+    </div>
+    <div style="padding:16px;">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:10px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.06em;">Resultat</label>
+        <input id="timer-modal-resultat" type="text" placeholder="2-1" style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-top:4px;">
+      </div>
+      <div id="timer-modal-players" style="margin-bottom:16px;"></div>
+      <button onclick="gemTimerModalStats()" style="width:100%;padding:12px;background:var(--navy);color:var(--yellow);border:none;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">💾 Gem statistik</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
