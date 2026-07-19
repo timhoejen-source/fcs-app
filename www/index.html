@@ -945,6 +945,7 @@ window.IS_NATIVE_APP = true;
       </div>
       <div class="sb-section-body">
         <div style="font-size:11px;color:var(--text-soft);margin-bottom:8px;line-height:1.5;">Gemte øvelser fra alle træninger. Søg og genbrug i nye sessioner.</div>
+        <button onclick="importAllExFromTrainings()" style="width:100%;padding:7px;background:#EBF2FB;color:#1A6EC0;border:1px solid #bfdbfe;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:8px;">📥 Importer øvelser fra alle træninger</button>
         <input type="text" id="exarch-search" placeholder="🔍 Søg i arkiv…" oninput="renderExArchiveList()" style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-family:inherit;font-size:12px;margin-bottom:8px;">
         <label id="exarch-import-btn" style="display:block;width:100%;background:var(--g50);color:var(--text-mid);border:1.5px dashed var(--g300);border-radius:7px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;text-align:center;margin-bottom:8px;box-sizing:border-box;">📥 Importer fra ZIP<input type="file" accept=".zip" style="display:none;" onchange="importExFromZip(this)"></label>
         <div id="exarch-list" style="max-height:340px;overflow-y:auto;"></div>
@@ -974,32 +975,12 @@ window.IS_NATIVE_APP = true;
     </div>
   </div>
 </div>
-<div class="tab-panel" id="tab-docs">
-      <div style="padding:0;">
 
-        <!-- Header -->
-        <div style="background:linear-gradient(135deg,#0A2342 0%,#1A3A5C 100%);border-radius:14px;padding:20px 20px 16px;margin-bottom:20px;">
-          <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-            <div style="width:44px;height:44px;background:rgba(245,196,0,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📁</div>
-            <div>
-              <div style="font-size:17px;font-weight:700;color:#fff;">Dokumenter</div>
-              <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;">PDF, Word, Excel og links til holdet</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:#F5C400;color:#0A2342;border:none;border-radius:9px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;">
-              ⬆️ Upload fil
-              <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.mp4,.csv" multiple style="display:none;" onchange="docsUpload(this)">
-            </label>
-            <button onclick="docsAddLink()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.2);border-radius:9px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;">
-              🔗 Tilføj link
-            </button>
-          </div>
-        </div>
-
-        <!-- Dokumentliste -->
-        <div id="docs-list"></div>
-
+    <!-- Dokumenter -->
+    <div class="sb-section" id="sb-docs-section">
+      <div class="sb-section-hdr" onclick="openDocsModal()" style="cursor:pointer;">
+        <span class="sb-section-title">📁 Dokumenter</span>
+        <span style="font-size:12px;color:var(--text-soft);">→</span>
       </div>
     </div>
 
@@ -1049,7 +1030,7 @@ window.IS_NATIVE_APP = true;
       <button class="tab-btn" id="tab-board-btn" onclick="switchTab('board')"><span class="tab-emoji">📋</span><span class="tab-label">Opstilling</span></button>
       <button class="tab-btn" id="tab-stilling-btn" onclick="switchTab('stilling')"><span class="tab-emoji">📊</span><span class="tab-label">Stilling</span></button>
       <button class="tab-btn" id="tab-cup-btn" onclick="switchTab('cup')"><span class="tab-emoji">🏅</span><span class="tab-label">Cup</span></button>
-      <button class="tab-btn" id="tab-docs-btn" onclick="switchTab('docs')"><span class="tab-emoji">📁</span><span class="tab-label">Dokumenter</span></button>
+      
     </div>
 
     <!-- Spillere panel -->
@@ -1548,6 +1529,7 @@ let dbuStilling=[];
 let cups=[];
 let exerciseArchive=[];
 let exerciseFolders=[];
+var docs=[];
 // ── Server endpoints ─────────────────────────────────────────────────────────
 const BASE_URL = (window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost')
     ? 'https://fcspigetalent.synology.me/fcs/'
@@ -5051,6 +5033,7 @@ async function loadFromServer(){
     renderTeams(); renderSelects(); render(); renderKampe(); populateExportSelectors();
     applyRole();
     stillingApplyServerDefault();
+    renderExArchiveList();
     if(document.getElementById('tab-cup')&&document.getElementById('tab-cup').classList.contains('active')) renderCups();
     setSyncDot('ok');
     toast('✅ '+players.length+' spillere · '+matches.length+' kampe · '+trainings.length+' træninger hentet');
@@ -6283,6 +6266,15 @@ document.addEventListener('click', function(e){
   // View image fullscreen
   var viewImg=e.target.closest('[data-viewimg]');
   if(viewImg){ viewExerciseImg(viewImg.getAttribute('data-trid'), parseInt(viewImg.getAttribute('data-viewimg'))); return; }
+  // Gem øvelse i arkiv
+  var archEx=e.target.closest('[data-archex]');
+  if(archEx){ archiveExercise(archEx.getAttribute('data-trid'), parseInt(archEx.getAttribute('data-archex'))); return; }
+  // Brug øvelse fra arkiv i en træning
+  var useArch=e.target.closest('[data-usearchex]');
+  if(useArch){ useArchiveExercise(useArch.getAttribute('data-usearchex'), useArch.getAttribute('data-totrid')); return; }
+  // Slet fra arkiv
+  var delArch=e.target.closest('[data-delarch]');
+  if(delArch){ deleteFromArchive(delArch.getAttribute('data-delarch')); return; }
 });
 
 // Image input change via delegation
@@ -6863,34 +6855,404 @@ function klubSetupOpen(foerstgang){
   klubSetupPreview();
 }
 
-function renderExArchiveList(){
-  var el = document.getElementById('exarch-list');
-  if(!el) return;
-  var isAdmin = currentRole === 'admin';
-  var canEdit = ['admin','trainer'].includes(currentRole);
-  var q = ((document.getElementById('exarch-search')||{}).value||'').trim().toLowerCase();
 
-  var filtered = exerciseArchive.filter(function(a){
-    return !q || a.name.toLowerCase().indexOf(q) !== -1 || (a.desc||'').toLowerCase().indexOf(q) !== -1;
+// ── Øvelsesarkiv funktioner ───────────────────────────────────────────────────
+
+
+// ── Øvelsesarkiv — mappe-struktur ─────────────────────────────────────────────
+
+function saveExerciseArchive(){
+  try{ localStorage.setItem('fcs-exarchive', JSON.stringify(exerciseArchive)); }catch(e){}
+  clearTimeout(window._exArchSyncTimer);
+  window._exArchSyncTimer = setTimeout(function(){ saveToServer(true); }, 1200);
+}
+
+function saveFolders(){
+  saveExerciseArchive();
+}
+
+function archiveExercise(trid, exIdx){
+  var t = trainings.find(function(x){ return x.id===trid; });
+  if(!t||!t.exercises) return;
+  var ex = t.exercises[exIdx];
+  if(!ex){ toast('⚠️ Øvelse ikke fundet'); return; }
+  var exists = exerciseArchive.find(function(a){
+    return a.name.toLowerCase()===ex.name.trim().toLowerCase();
   });
+  if(exists){
+    if(!confirm('"'+ex.name+'" findes allerede i arkivet.\nOpdater med denne version?')) return;
+    exists.name=ex.name.trim(); exists.desc=ex.desc||''; exists.min=ex.min||0;
+    exists.img=ex.img||null; exists.updatedAt=new Date().toISOString();
+  } else {
+    exerciseArchive.push({
+      id:uid(), name:ex.name.trim(), desc:ex.desc||'', min:ex.min||0,
+      img:ex.img||null, folderId:null,
+      savedAt:new Date().toISOString(), savedBy:localStorage.getItem('fcs-user')||''
+    });
+  }
+  exerciseArchive.sort(function(a,b){ return a.name.localeCompare(b.name,'da'); });
+  saveExerciseArchive();
+  renderExArchiveList();
+  toast('📥 "'+ex.name+'" gemt i arkivet');
+}
 
-  if(!filtered.length){
-    el.innerHTML = '<div style="font-size:11px;color:var(--text-soft);text-align:center;padding:20px 0;">'+(exerciseArchive.length && q ? 'Ingen match' : 'Arkivet er tomt — gem en øvelse fra en træning')+'<\/div>';
+function importAllExFromTrainings(){
+  if(!trainings.length){ toast('⚠️ Ingen træninger at importere fra'); return; }
+  var imported=0, skipped=0;
+  trainings.forEach(function(t){
+    (t.exercises||[]).forEach(function(ex){
+      if(!ex.name||!ex.name.trim()) return;
+      var exists=exerciseArchive.find(function(a){
+        return a.name.toLowerCase()===ex.name.trim().toLowerCase();
+      });
+      if(exists){ skipped++; return; }
+      exerciseArchive.push({
+        id:uid(), name:ex.name.trim(), desc:ex.desc||'', min:ex.min||0,
+        img:ex.img||null, folderId:null,
+        savedAt:new Date().toISOString(), savedBy:localStorage.getItem('fcs-user')||'import'
+      });
+      imported++;
+    });
+  });
+  if(!imported&&!skipped){ toast('⚠️ Ingen øvelser fundet i træninger'); return; }
+  exerciseArchive.sort(function(a,b){ return a.name.localeCompare(b.name,'da'); });
+  saveExerciseArchive();
+  renderExArchiveList();
+  toast('✅ '+imported+' importeret'+(skipped?' · '+skipped+' duplikater sprunget over':''));
+}
+
+// ── Mappe-funktioner ──────────────────────────────────────────────────────────
+
+function createExFolder(name, adminOnly){
+  if(!name||!name.trim()) return;
+  var exists = exerciseFolders.find(function(f){
+    return f.name.toLowerCase()===name.trim().toLowerCase();
+  });
+  if(exists){ toast('⚠️ En mappe med dette navn eksisterer allerede'); return; }
+  exerciseFolders.push({id:'folder-'+uid(), name:name.trim(), adminOnly:!!adminOnly});
+  saveFolders();
+  renderExArchiveList();
+  toast('📁 Mappe "'+name.trim()+'" oprettet');
+}
+
+function renameExFolder(folderId){
+  var folder = exerciseFolders.find(function(f){ return f.id===folderId; });
+  if(!folder) return;
+  var newName = prompt('Nyt mappenavn:', folder.name);
+  if(newName&&newName.trim()&&newName.trim()!==folder.name){
+    folder.name=newName.trim(); saveFolders(); renderExArchiveList();
+  }
+}
+
+function deleteExFolder(folderId){
+  var folder = exerciseFolders.find(function(f){ return f.id===folderId; });
+  if(!folder) return;
+  var count = exerciseArchive.filter(function(a){ return a.folderId===folderId; }).length;
+  var msg = 'Slet mappen "'+folder.name+'"?';
+  if(count) msg += '\n\n'+count+' øvelse'+(count!==1?'r':'')+' flyttes til rod (slettes ikke).';
+  if(!confirm(msg)) return;
+  exerciseArchive.forEach(function(a){ if(a.folderId===folderId) a.folderId=null; });
+  exerciseFolders = exerciseFolders.filter(function(f){ return f.id!==folderId; });
+  saveFolders();
+  sessionStorage.removeItem('exarch-active-folder');
+  renderExArchiveList();
+}
+
+function moveExToFolder(exId, folderId){
+  var ex = exerciseArchive.find(function(a){ return a.id===exId; });
+  if(ex){ ex.folderId=folderId||null; saveExerciseArchive(); renderExArchiveList(); }
+}
+
+// ── Arkiv redigering ──────────────────────────────────────────────────────────
+
+function openArchiveEdit(id){
+  var ex = exerciseArchive.find(function(a){ return a.id===id; });
+  if(!ex) return;
+  var html='<div id="exedit-overlay" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;">'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">'
+      +'<div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:14px;">✏️ Rediger øvelse</div>'
+      +'<div class="fg"><label>Navn</label><input type="text" id="exedit-name" value="'+ex.name.replace(/"/g,'&quot;')+'" style="width:100%;"></div>'
+      +'<div class="fg"><label>Minutter</label><input type="number" id="exedit-min" min="0" max="90" value="'+(ex.min||'')+'"></div>'
+      +'<div class="fg"><label>Beskrivelse</label><textarea id="exedit-desc" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--g200);border-radius:7px;">'+(ex.desc||'')+'</textarea></div>'
+      +(ex.img
+        ?'<div class="fg"><label>Billede</label><img src="'+ex.img+'" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-bottom:6px;"><button data-clearimgarch="'+ex.id+'" style="background:#fff;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">🗑️ Fjern billede</button></div>'
+        :'<div class="fg"><label>Billede</label><input type="file" accept="image/*" id="exedit-img"></div>'
+      )
+      +'<div style="display:flex;gap:8px;margin-top:8px;">'
+        +'<button id="exedit-save" data-id="'+ex.id+'" style="flex:1;background:var(--navy);color:var(--yellow);border:none;border-radius:8px;padding:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">💾 Gem ændringer</button>'
+        +'<button onclick="document.getElementById(\'exedit-overlay\').remove()" style="background:var(--g100);border:none;border-radius:8px;padding:10px 16px;font-family:inherit;cursor:pointer;">Annuller</button>'
+      +'</div>'
+    +'</div></div>';
+  var d=document.createElement('div'); d.innerHTML=html;
+  document.body.appendChild(d.firstChild);
+}
+
+function saveArchiveEdit(id){
+  var ex = exerciseArchive.find(function(a){ return a.id===id; });
+  if(!ex) return;
+  var name=(document.getElementById('exedit-name')||{}).value||'';
+  var min=(document.getElementById('exedit-min')||{}).value||'';
+  var desc=(document.getElementById('exedit-desc')||{}).value||'';
+  if(!name.trim()){ toast('⚠️ Skriv øvelsens navn'); return; }
+  function finish(){
+    ex.name=name.trim(); ex.min=parseInt(min)||0; ex.desc=desc.trim();
+    ex.updatedAt=new Date().toISOString();
+    exerciseArchive.sort(function(a,b){ return a.name.localeCompare(b.name,'da'); });
+    saveExerciseArchive(); renderExArchiveList();
+    var o=document.getElementById('exedit-overlay'); if(o) o.remove();
+    toast('✅ Øvelse opdateret');
+  }
+  var imgInp=document.getElementById('exedit-img');
+  if(imgInp&&imgInp.files&&imgInp.files[0]){
+    var reader=new FileReader();
+    reader.onload=function(ev){ ex.img=ev.target.result; finish(); };
+    reader.readAsDataURL(imgInp.files[0]);
+  } else { finish(); }
+}
+
+function deleteArchivedExercise(id){
+  var ex=exerciseArchive.find(function(a){ return a.id===id; });
+  if(!ex) return;
+  if(!confirm('Slet "'+ex.name+'" fra arkivet?')) return;
+  exerciseArchive=exerciseArchive.filter(function(a){ return a.id!==id; });
+  saveExerciseArchive(); renderExArchiveList();
+  toast('🗑️ Slettet fra arkiv');
+}
+
+// ── Render arkivliste (med mapper) ────────────────────────────────────────────
+
+function exArchiveRow(a){
+  var canEdit=['admin','trainer'].includes(currentRole);
+  var isAdmin=currentRole==='admin';
+  var imgThumb=a.img?'<img src="'+a.img+'" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0;">':'';
+  var visibleFolders=exerciseFolders.filter(function(f){ return !f.adminOnly||isAdmin; });
+  var moveBtn='';
+  if(canEdit&&visibleFolders.length){
+    var opts='<option value="">📂 Uden mappe</option>'
+      +visibleFolders.map(function(f){
+        return '<option value="'+f.id+'"'+(a.folderId===f.id?' selected':'')+'>📁 '+f.name+'</option>';
+      }).join('');
+    moveBtn='<select data-moveex="'+a.id+'" title="Flyt til mappe" style="font-size:10px;border:1px solid var(--g200);border-radius:5px;padding:2px 4px;background:var(--g50);cursor:pointer;max-width:90px;flex-shrink:0;">'+opts+'</select>';
+  }
+  return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--g100);">'
+    +imgThumb
+    +'<div data-editarch="'+a.id+'" style="flex:1;min-width:0;cursor:pointer;" title="Klik for at redigere">'
+      +'<div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+a.name+'</div>'
+      +'<div style="font-size:10px;color:var(--text-soft);">'+(a.min?a.min+' min · ':'')+((a.desc||'').slice(0,38)+((a.desc||'').length>38?'…':''))+'</div>'
+    +'</div>'
+    +moveBtn
+    +'<button data-delarch="'+a.id+'" title="Slet" style="background:none;border:1px solid #fecaca;color:#dc2626;border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer;flex-shrink:0;">🗑️</button>'
+  +'</div>';
+}
+
+function renderExArchiveList(){
+  var el=document.getElementById('exarch-list');
+  if(!el) return;
+  var isAdmin=currentRole==='admin';
+  var canEdit=['admin','trainer'].includes(currentRole);
+  var q=((document.getElementById('exarch-search')||{}).value||'').trim().toLowerCase();
+  var activeFolder=sessionStorage.getItem('exarch-active-folder');
+  var visibleFolders=exerciseFolders.filter(function(f){ return !f.adminOnly||isAdmin; });
+
+  // ── Mappe-visning ──────────────────────────────────────────────────────────
+  if(activeFolder){
+    var folder=visibleFolders.find(function(f){ return f.id===activeFolder; });
+    if(!folder){ sessionStorage.removeItem('exarch-active-folder'); renderExArchiveList(); return; }
+    var folderExs=exerciseArchive.filter(function(a){
+      return a.folderId===activeFolder &&
+        (!q||a.name.toLowerCase().indexOf(q)!==-1||(a.desc||'').toLowerCase().indexOf(q)!==-1);
+    });
+    var adminBadge=folder.adminOnly?'<span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 5px;border-radius:4px;margin-left:4px;">Admin</span>':'';
+    var html='<div style="display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--g200);margin-bottom:8px;">'
+      +'<button data-closefolder="1" style="background:none;border:none;color:var(--blue);font-size:20px;cursor:pointer;padding:0;line-height:1;">←</button>'
+      +'<span style="font-size:13px;font-weight:700;flex:1;">'+folder.name+adminBadge+'</span>'
+      +(canEdit?'<button data-renamefolder="'+folder.id+'" title="Omdøb" style="background:none;border:none;font-size:12px;cursor:pointer;padding:2px 5px;">✏️</button>':'')
+      +(isAdmin?'<button data-deletefolder="'+folder.id+'" title="Slet mappe" style="background:none;border:none;font-size:12px;cursor:pointer;padding:2px 5px;color:#dc2626;">🗑️</button>':'')
+      +'</div>';
+    html+=folderExs.length
+      ?folderExs.map(function(a){ return exArchiveRow(a); }).join('')
+      :'<div style="font-size:11px;color:var(--text-soft);text-align:center;padding:20px 0;">'+(q?'Ingen match':'Tom mappe — gem en øvelse her')+'</div>';
+    el.innerHTML=html;
     return;
   }
 
-  el.innerHTML = filtered.map(function(a){
-    var imgThumb = a.img ? '<img src="'+a.img+'" style="width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0;">' : '';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--g100);">'+
-      imgThumb+
-      '<div style="flex:1;min-width:0;">'+
-        '<div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+a.name+'<\/div>'+
-        '<div style="font-size:10px;color:var(--text-soft);">'+(a.min?a.min+' min':'')+'<\/div>'+
-      '<\/div>'+
-      (isAdmin?'<button data-delarch="'+a.id+'" style="background:none;border:1px solid #fecaca;color:#dc2626;border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer;">🗑️<\/button>':'')+
-    '<\/div>';
+  // ── Rod-niveau: mapper + øvelser uden mappe ───────────────────────────────
+  var html='';
+
+  // Opret mappe-knap
+  if(canEdit){
+    html+='<button id="exarch-new-folder-btn" style="width:100%;background:var(--g50);color:var(--navy);border:1.5px dashed var(--g300);border-radius:7px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:10px;">📁 + Opret ny mappe</button>';
+  }
+
+  // Mapper
+  visibleFolders.forEach(function(folder){
+    var count=exerciseArchive.filter(function(a){ return a.folderId===folder.id; }).length;
+    var adminBadge=folder.adminOnly?'<span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 5px;border-radius:4px;margin-left:4px;">Admin</span>':'';
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--g50);border:1.5px solid var(--g200);border-radius:8px;margin-bottom:5px;cursor:pointer;" data-openfolder="'+folder.id+'">'
+      +'<span style="font-size:16px;pointer-events:none;">📁</span>'
+      +'<span style="font-size:12px;font-weight:700;flex:1;pointer-events:none;">'+folder.name+adminBadge+'</span>'
+      +'<span style="font-size:10px;color:var(--text-soft);pointer-events:none;">'+count+' øv.</span>'
+      +'</div>';
+  });
+
+  // Øvelser uden mappe (eller søgeresultat på tværs)
+  var rootExs=exerciseArchive.filter(function(a){
+    var inFolder=visibleFolders.some(function(f){ return f.id===a.folderId; });
+    return (!a.folderId||!inFolder) &&
+      (!q||a.name.toLowerCase().indexOf(q)!==-1||(a.desc||'').toLowerCase().indexOf(q)!==-1);
+  });
+
+  if(q){
+    // Søgning: vis øvelser fra alle mapper
+    var allMatch=exerciseArchive.filter(function(a){
+      return a.name.toLowerCase().indexOf(q)!==-1||(a.desc||'').toLowerCase().indexOf(q)!==-1;
+    });
+    if(allMatch.length){
+      html+='<div style="font-size:9px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 4px;">Søgeresultater ('+allMatch.length+')</div>';
+      html+=allMatch.map(function(a){ return exArchiveRow(a); }).join('');
+    } else {
+      html+='<div style="font-size:11px;color:var(--text-soft);text-align:center;padding:20px 0;">Ingen øvelser matcher "'+q+'"</div>';
+    }
+    el.innerHTML=html;
+    return;
+  }
+
+  if(rootExs.length){
+    if(visibleFolders.length){
+      html+='<div style="font-size:9px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 5px;">Uden mappe ('+rootExs.length+')</div>';
+    }
+    html+=rootExs.map(function(a){ return exArchiveRow(a); }).join('');
+  }
+
+  if(!visibleFolders.length&&!rootExs.length){
+    html+='<div style="font-size:11px;color:var(--text-soft);text-align:center;padding:20px 0;">Arkivet er tomt — gem en øvelse fra en træning</div>';
+  }
+
+  el.innerHTML=html;
+}
+
+// ── Arkiv-picker (hent fra arkiv til træning) ─────────────────────────────────
+
+function openArchivePicker(trid){
+  var html='<div id="exp-overlay" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;">'
+    +'<div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:440px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">'
+      +'<div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:4px;">📚 Hent fra øvelsesarkiv</div>'
+      +'<div style="font-size:11px;color:var(--text-soft);margin-bottom:12px;">Vælg en øvelse at indsætte i træningen</div>'
+      +'<input type="text" id="exp-search" placeholder="🔍 Søg…" oninput="renderArchivePickerList(\''+trid+'\')" style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-family:inherit;font-size:12px;margin-bottom:10px;">'
+      +'<div id="exp-list" data-trid="'+trid+'" style="overflow-y:auto;flex:1;"></div>'
+      +'<button onclick="document.getElementById(\'exp-overlay\').remove()" style="margin-top:14px;width:100%;background:var(--g100);border:none;border-radius:8px;padding:10px;font-family:inherit;cursor:pointer;">Luk</button>'
+    +'</div></div>';
+  var d=document.createElement('div'); d.innerHTML=html;
+  document.body.appendChild(d.firstChild);
+  renderArchivePickerList(trid);
+}
+
+function renderArchivePickerList(trid){
+  var el=document.getElementById('exp-list');
+  if(!el) return;
+  var q=((document.getElementById('exp-search')||{}).value||'').trim().toLowerCase();
+  var filtered=exerciseArchive.filter(function(a){
+    return !q||a.name.toLowerCase().indexOf(q)!==-1||(a.desc||'').toLowerCase().indexOf(q)!==-1;
+  });
+  if(!filtered.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text-soft);text-align:center;padding:20px 0;">'
+      +(exerciseArchive.length?'Ingen match':'Arkivet er tomt')+'</div>';
+    return;
+  }
+  // Gruppér per mappe
+  var isAdmin=currentRole==='admin';
+  var visibleFolders=exerciseFolders.filter(function(f){ return !f.adminOnly||isAdmin; });
+  var groups=[]; // [{label, items}]
+  visibleFolders.forEach(function(f){
+    var items=filtered.filter(function(a){ return a.folderId===f.id; });
+    if(items.length) groups.push({label:f.name,items:items});
+  });
+  var rootItems=filtered.filter(function(a){
+    return !a.folderId||!visibleFolders.some(function(f){ return f.id===a.folderId; });
+  });
+  if(rootItems.length) groups.push({label:'',items:rootItems});
+
+  el.innerHTML=groups.map(function(g){
+    var rows=g.items.map(function(a){
+      var img=a.img?'<img src="'+a.img+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">':'<div style="width:40px;height:40px;background:var(--g100);border-radius:6px;flex-shrink:0;"></div>';
+      return '<div data-pickarch="'+a.id+'" data-trid="'+trid+'" style="display:flex;align-items:center;gap:10px;padding:8px;border:1.5px solid var(--g200);border-radius:8px;margin-bottom:5px;cursor:pointer;" onmouseover="this.style.borderColor=\'var(--navy)\'" onmouseout="this.style.borderColor=\'var(--g200)\'">'
+        +img
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:13px;font-weight:700;">'+a.name+'</div>'
+          +(a.min?'<div style="font-size:10px;color:var(--text-soft);">'+a.min+' min</div>':'')
+          +(a.desc?'<div style="font-size:10px;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+a.desc.split('\n')[0]+'</div>':'')
+        +'</div>'
+      +'</div>';
+    }).join('');
+    return (g.label?'<div style="font-size:9px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 4px;">📁 '+g.label+'</div>':'')
+      +rows;
   }).join('');
 }
+
+function insertFromArchive(trid, archiveId){
+  var t=trainings.find(function(x){ return x.id===trid; });
+  var a=exerciseArchive.find(function(x){ return x.id===archiveId; });
+  if(!t||!a) return;
+  if(!t.exercises) t.exercises=[];
+  t.exercises.push({id:uid(), name:a.name, min:a.min, desc:a.desc, img:a.img||null});
+  saveTrainings(); refreshExSection(trid);
+  var o=document.getElementById('exp-overlay'); if(o) o.remove();
+  toast('✅ "'+a.name+'" tilføjet til træningen');
+}
+
+// ── Click delegation for arkiv ────────────────────────────────────────────────
+document.addEventListener('click', function(e){
+  // Arkiv: gem øvelse fra træning
+  var arBtn=e.target.closest('[data-archex]');
+  if(arBtn){ archiveExercise(arBtn.getAttribute('data-trid'),parseInt(arBtn.getAttribute('data-archex'))); return; }
+  // Arkiv: ny mappe
+  if(e.target.id==='exarch-new-folder-btn'||e.target.closest('#exarch-new-folder-btn')){
+    var nm=prompt('Mappenavn:'); if(!nm||!nm.trim()) return;
+    var mkAdm=currentRole==='admin'&&confirm('Kun synlig for admin?\nOK = Kun admin · Annuller = Alle');
+    createExFolder(nm,mkAdm); return;
+  }
+  // Arkiv: åbn mappe
+  var ofEl=e.target.closest('[data-openfolder]');
+  if(ofEl){ sessionStorage.setItem('exarch-active-folder',ofEl.getAttribute('data-openfolder')); renderExArchiveList(); return; }
+  // Arkiv: luk mappe (tilbage)
+  var cfEl=e.target.closest('[data-closefolder]');
+  if(cfEl){ sessionStorage.removeItem('exarch-active-folder'); renderExArchiveList(); return; }
+  // Arkiv: omdøb mappe
+  var rfEl=e.target.closest('[data-renamefolder]');
+  if(rfEl){ e.stopPropagation(); renameExFolder(rfEl.getAttribute('data-renamefolder')); return; }
+  // Arkiv: slet mappe
+  var dfEl=e.target.closest('[data-deletefolder]');
+  if(dfEl){ e.stopPropagation(); deleteExFolder(dfEl.getAttribute('data-deletefolder')); return; }
+  // Arkiv: slet øvelse
+  var delArch=e.target.closest('[data-delarch]');
+  if(delArch){ deleteArchivedExercise(delArch.getAttribute('data-delarch')); return; }
+  // Arkiv: rediger øvelse
+  var editArch=e.target.closest('[data-editarch]');
+  if(editArch){ openArchiveEdit(editArch.getAttribute('data-editarch')); return; }
+  // Arkiv: gem edit
+  var saveEdit=e.target.closest('#exedit-save');
+  if(saveEdit){ saveArchiveEdit(saveEdit.getAttribute('data-id')); return; }
+  // Arkiv: fjern billede
+  var clearImg=e.target.closest('[data-clearimgarch]');
+  if(clearImg){
+    var ex=exerciseArchive.find(function(a){ return a.id===clearImg.getAttribute('data-clearimgarch'); });
+    if(ex){ ex.img=null; var o=document.getElementById('exedit-overlay'); if(o) o.remove(); openArchiveEdit(ex.id); }
+    return;
+  }
+  // Arkiv-picker: åbn
+  var openPicker=e.target.closest('[data-openarchpicker]');
+  if(openPicker){ openArchivePicker(openPicker.getAttribute('data-openarchpicker')); return; }
+  // Arkiv-picker: indsæt øvelse
+  var pickItem=e.target.closest('[data-pickarch]');
+  if(pickItem){ insertFromArchive(pickItem.getAttribute('data-trid'),pickItem.getAttribute('data-pickarch')); return; }
+});
+
+// Flyt øvelse til mappe (change delegation)
+document.addEventListener('change', function(e){
+  var moveEl=e.target.closest('[data-moveex]');
+  if(moveEl){ moveExToFolder(moveEl.getAttribute('data-moveex'),moveEl.value||null); return; }
+});
+
 
 
 async function loadNotifications(){
@@ -7455,6 +7817,132 @@ s.textContent='@keyframes pulse-green{0%,100%{opacity:1}50%{opacity:.3}}';docume
 // ═══════════════════════════════════════════════════════════════════
 
 
+
+// ── Dokumenter modal ──────────────────────────────────────────────────────────
+function openDocsModal(){
+  var el=document.getElementById('docs-modal-overlay');
+  if(!el) return;
+  el.style.display='flex';
+  renderDocsModal();
+  loadDocs().then(function(){ renderDocsModal(); });
+}
+
+function closeDocsModal(){
+  var el=document.getElementById('docs-modal-overlay');
+  if(el) el.style.display='none';
+}
+
+async function loadDocs(){
+  try{
+    var res=await fetch(BASE_URL+'docs.php',{credentials:'include',headers:authHeaders()});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var data=await res.json();
+    if(data.ok&&Array.isArray(data.docs)) docs=data.docs;
+  }catch(e){ console.warn('loadDocs fejl:',e); }
+}
+
+function renderDocsModal(){
+  var el=document.getElementById('docs-modal-list');
+  if(!el) return;
+  if(!docs||!docs.length){
+    el.innerHTML='<div style="text-align:center;padding:40px 0;color:var(--text-soft);font-size:13px;">Ingen dokumenter endnu<br><small>Upload en fil eller tilføj et link</small></div>';
+    return;
+  }
+  var ce=['admin','trainer'].includes(currentRole);
+  el.innerHTML=docs.map(function(d){
+    var ext=d.type==='link'?'link':(d.name||'').split('.').pop().toLowerCase();
+    var icons={pdf:'📄',docx:'📝',doc:'📝',pptx:'📊',ppt:'📊',xlsx:'📈',xls:'📈',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',link:'🔗',mp4:'🎬',txt:'📃',csv:'📊'};
+    var icon=icons[ext]||'📁';
+    var href=d.type==='link'?d.url:BASE_URL+'docs.php?download='+encodeURIComponent(d.filename||'');
+    var size=d.size?(d.size>1048576?(d.size/1048576).toFixed(1)+' MB':d.size>1024?Math.round(d.size/1024)+' KB':d.size+' B'):'';
+    var date=d.uploadedAt?new Date(d.uploadedAt).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'}):'';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--g100);">'
+      +'<div style="width:36px;height:36px;background:var(--g50);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">'+icon+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+        +'<a href="'+href+'" target="_blank" style="font-size:13px;font-weight:700;color:var(--navy);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">'+d.name+'</a>'
+        +'<div style="font-size:10px;color:var(--text-soft);">'+(size?size+' · ':'')+date+(d.uploadedBy?' · '+d.uploadedBy:'')+'</div>'
+      +'</div>'
+      +(ce?'<button onclick="docsDelete(\''+encodeURIComponent(d.filename||d.id||'')+'\',\''+d.type+'\')" style="background:none;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;">🗑️</button>':'')
+    +'</div>';
+  }).join('');
+}
+
+function docsUpload(input){
+  var files=input.files;
+  if(!files||!files.length) return;
+  var tooBig=[];
+  for(var i=0;i<files.length;i++){
+    if(files[i].size>20*1024*1024) tooBig.push(files[i].name);
+  }
+  if(tooBig.length){ toast('⚠️ For stor (maks 20 MB): '+tooBig.join(', ')); return; }
+  toast('⏳ Uploader '+files.length+' fil'+(files.length!==1?'er':'')+'…');
+  var promises=[];
+  for(var j=0;j<files.length;j++) promises.push(_docsUploadOne(files[j]));
+  Promise.all(promises).then(function(){
+    input.value='';
+    return loadDocs();
+  }).then(function(){ renderDocsModal(); toast('✅ Uploadet'); })
+  .catch(function(err){ toast('❌ '+err.message); });
+}
+
+async function _docsUploadOne(file){
+  var fd=new FormData();
+  fd.append('file',file);
+  // docs.php expects POST ?upload with $_FILES['file']
+  var res=await fetch(BASE_URL+'docs.php?upload=1',{method:'POST',credentials:'include',body:fd});
+  var text=await res.text();
+  var data;
+  try{ data=JSON.parse(text); }catch(e){ throw new Error('Server svar ugyldigt: '+text.slice(0,80)); }
+  if(!data.ok) throw new Error(data.error||'Upload fejlede');
+  // After upload, add metadata to docs list via POST body
+  var meta={id:'doc-'+Date.now(),name:file.name,filename:data.filename,type:'file',size:file.size,uploadedAt:new Date().toISOString(),uploadedBy:localStorage.getItem('fcs-user')||''};
+  await _docsSaveMeta(meta);
+}
+
+async function _docsSaveMeta(newDoc){
+  await loadDocs();
+  docs.push(newDoc);
+  var res=await fetch(BASE_URL+'docs.php',{
+    method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(docs)
+  });
+  var data=await res.json();
+  if(!data.ok) throw new Error(data.error||'Gem metadata fejlede');
+}
+
+function docsAddLink(){
+  var url=prompt('Indsæt link (URL):');
+  if(!url||!url.trim()) return;
+  if(!/^https?:\/\//i.test(url.trim())) url='https://'+url.trim();
+  var name=prompt('Navn på linket:',url.replace(/^https?:\/\//,'').split('/')[0]);
+  if(!name||!name.trim()) return;
+  var meta={id:'link-'+Date.now(),name:name.trim(),url:url.trim(),type:'link',uploadedAt:new Date().toISOString(),uploadedBy:localStorage.getItem('fcs-user')||''};
+  _docsSaveMeta(meta).then(function(){
+    loadDocs().then(function(){ renderDocsModal(); toast('✅ Link tilføjet'); });
+  }).catch(function(err){ toast('❌ '+err.message); });
+}
+
+function docsDelete(filename, type){
+  if(!confirm('Slet dette dokument?')) return;
+  // Remove from metadata
+  docs=docs.filter(function(d){ return (d.filename||d.id)!==decodeURIComponent(filename); });
+  fetch(BASE_URL+'docs.php',{
+    method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(docs)
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if(!data.ok){ toast('❌ '+(data.error||'Fejl ved sletning')); return; }
+    // Also delete the actual file if it's a file (not link)
+    if(type!=='link'&&filename){
+      fetch(BASE_URL+'docs.php?delete='+filename,{method:'DELETE',credentials:'include'}).catch(function(){});
+    }
+    renderDocsModal();
+    toast('🗑️ Slettet');
+  }).catch(function(err){ toast('❌ '+err.message); });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 </script>
 
 <!-- Opret ny klub overlay -->
@@ -7589,6 +8077,30 @@ s.textContent='@keyframes pulse-green{0%,100%{opacity:1}50%{opacity:.3}}';docume
       <div id="timer-modal-players" style="margin-bottom:16px;"></div>
       <button onclick="gemTimerModalStats()" style="width:100%;padding:12px;background:var(--navy);color:var(--yellow);border:none;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">💾 Gem statistik</button>
     </div>
+  </div>
+</div>
+
+<!-- Dokumenter modal -->
+<div id="docs-modal-overlay" onclick="if(event.target===this)closeDocsModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9990;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.3);">
+    <div style="background:var(--navy);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+      <div style="width:38px;height:38px;background:rgba(245,196,0,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📁</div>
+      <div style="flex:1;">
+        <div style="font-size:15px;font-weight:800;color:var(--yellow);">Dokumenter</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.55);margin-top:1px;">PDF, Word, Excel og links til holdet</div>
+      </div>
+      <button onclick="closeDocsModal()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;padding:0;line-height:1;">✕</button>
+    </div>
+    <div style="padding:16px;display:flex;gap:8px;flex-shrink:0;border-bottom:1px solid var(--g100);">
+      <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--navy);color:var(--yellow);border:none;border-radius:9px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">
+        ⬆️ Upload fil
+        <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.mp4,.csv" multiple style="display:none;" onchange="docsUpload(this)">
+      </label>
+      <button onclick="docsAddLink()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--g50);color:var(--navy);border:1.5px solid var(--g200);border-radius:9px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">
+        🔗 Tilføj link
+      </button>
+    </div>
+    <div id="docs-modal-list" style="overflow-y:auto;flex:1;padding:16px;"></div>
   </div>
 </div>
 </body>
