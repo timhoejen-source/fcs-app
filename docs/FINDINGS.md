@@ -219,6 +219,41 @@ Hold kode, produktionsdata, backups og hemmeligheder strengt adskilt.
 
 ---
 
+## FCS-007 – Manglende maintenance- og statusmekanisme
+
+**Status:** 🔍 Under undersøgelse  
+**Prioritet:** Normal  
+**Område:** Drift / Web / iOS  
+**Fundet:** 21. juli 2026  
+**Ansvarlig:** Ikke tildelt
+
+### Observation
+
+Platformen har ikke en fælles mekanisme til at vise en kontrolleret statusside i webappen og iOS-appen under planlagte opdateringer, patches eller midlertidig utilgængelighed af backenden.
+
+### Risiko
+
+Brugere kan opleve generelle fejl, tomme sider eller loginproblemer uden forklaring, når backenden er utilgængelig.
+
+### Ønsket løsning
+
+- En ekstern statusfil eller statustjeneste, som ikke afhænger af den normale backend.
+- En vedligeholdelsesside til webappen.
+- En indbygget fallback-skærm i iOS-appen.
+- Understøttelse af både planlagt vedligeholdelse og uventet nedbrud.
+- Mulighed for at vise titel, besked og forventet sluttidspunkt.
+
+### Næste skridt
+
+- Fastlæg hvor statusfilen skal hostes.
+- Gennemgå webappens opstartsflow.
+- Gennemgå iOS-appens API- og fejlhåndtering.
+- Beskriv implementeringen til Claude.
+
+### Anbefaling
+
+Ingen kodeændringer før den samlede løsning er designet og gennemgået.
+
 ## Skabelon til nye fund
 
 Kopiér sektionen nedenfor, når et nyt fund oprettes.
