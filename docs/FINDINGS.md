@@ -36,8 +36,8 @@ Formålet er at sikre, at tekniske problemer bliver dokumenteret, undersøgt, pr
 
 ## FCS-001 – Dokumentisolering mellem klubber
 
-**Status:** 🔍 Under undersøgelse  
-**Prioritet:** Høj  
+**Status: ⚠️ Verificeret
+**Prioritet: Høj  
 **Område:** Backend / Dokumenter  
 **Fundet:** 20. juli 2026  
 **Ansvarlig:** ChatGPT / teknisk review
