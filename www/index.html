@@ -7326,572 +7326,142 @@ async function changeUserRole(username, role){
 }
 
 async function loadDocs(){
-  try{
-    var res = await fetch(BASE_URL+'docs.php', {credentials:'include', headers:authHeaders()});
-    if(res.status===401){ console.warn('loadDocs: ikke logget ind'); return; }
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    var data = await res.json();
-    if(data.ok && Array.isArray(data.docs)){ docs = data.docs; }
-  }catch(e){ console.warn('loadDocs fejl:', e.message); }
-  renderDocs();
+  try {
+    var res = await fetch(BASE_URL + 'docs.php', {
+      method: 'GET',
+      credentials: 'include',
+      headers: authHeaders()
+    });
+    var text = await res.text();
+    var data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('loadDocs returnerede ikke JSON', {
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        response: text.slice(0, 1000)
+      });
+      throw new Error('Dokumentserveren returnerede HTTP ' + res.status);
+    }
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'HTTP ' + res.status);
+    }
+    docs = Array.isArray(data.docs) ? data.docs : [];
+    renderDocsModal();
+  } catch (e) {
+    console.error('loadDocs fejl:', e);
+    toast('❌ Kunne ikke hente dokumenter: ' + e.message);
+  }
 }
 
 async function docsUpload(input){
-  if(!input.files || !input.files.length) return;
+  if (!input.files || !input.files.length) return;
   var files = Array.from(input.files);
-  for(var i=0; i<files.length; i++){
-    await _docsUploadOne(files[i]);
+  try {
+    for (var i = 0; i < files.length; i++) {
+      await _docsUploadOne(files[i]);
+    }
+    input.value = '';
+    await loadDocs();
+    toast('✅ Dokumenter uploadet');
+  } catch (e) {
+    console.error('docsUpload fejl:', e);
+    toast('❌ ' + e.message);
   }
-  input.value = '';
-  await loadDocs();
 }
 
 async function _docsUploadOne(file){
-  if(file.size > 20*1024*1024){ toast('⚠️ '+file.name+' er over 20 MB — spring over'); return; }
+  if (file.size > 20 * 1024 * 1024) {
+    throw new Error(file.name + ' er større end 20 MB');
+  }
   var fd = new FormData();
   fd.append('file', file);
-  // Ingen Content-Type — browseren sætter multipart boundary selv
-  var headers = {};
+  var uploadHeaders = {};
   var token = localStorage.getItem('fcs-token');
-  if(token) headers['X-Auth-Token'] = token;
-  try{
-    var res = await fetch(BASE_URL+'docs.php?upload=1', {
-      method:'POST', credentials:'include', headers:headers, body:fd
+  if (token) uploadHeaders['X-Auth-Token'] = token;
+  var uploadUrl = BASE_URL + 'docs.php?upload=1';
+  console.log('Document upload request', {
+    url: uploadUrl, method: 'POST',
+    fileName: file.name, fileSize: file.size
+  });
+  var res = await fetch(uploadUrl, {
+    method: 'POST',
+    credentials: 'include',
+    headers: uploadHeaders,
+    body: fd
+  });
+  var text = await res.text();
+  var data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.error('Document upload returned non-JSON', {
+      url: uploadUrl, status: res.status,
+      contentType: res.headers.get('content-type'),
+      response: text.slice(0, 1000)
     });
-    var raw = await res.text();
+    throw new Error('Serveren returnerede HTTP ' + res.status + ' i stedet for JSON');
+  }
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || 'Upload fejlede med HTTP ' + res.status);
+  }
+  return data.document;
+}
+
+async function docsAddLink(){
+  var url = prompt('Indsæt link (URL):');
+  if (!url || !url.trim()) return;
+  url = url.trim();
+  if (!/^https?:\/\//i.test(url)) { url = 'https://' + url; }
+  var name = prompt('Navn på linket:', url.replace(/^https?:\/\//i, '').split('/')[0]);
+  if (!name || !name.trim()) return;
+  try {
+    var res = await fetch(BASE_URL + 'docs.php?upload=1', {
+      method: 'POST',
+      credentials: 'include',
+      headers: Object.assign({'Content-Type': 'application/json'}, authHeaders()),
+      body: JSON.stringify({ type: 'link', name: name.trim(), url: url })
+    });
+    var text = await res.text();
     var data;
-    try{ data = JSON.parse(raw); }catch(parseErr){
-      console.error('docs upload — ugyldigt svar fra server:', {
-        status: res.status,
-        contentType: res.headers.get('content-type'),
-        body: raw.substring(0, 500)
-      });
-      toast('❌ Serverfejl ved upload (ugyldigt svar) — se konsol');
-      return;
+    try { data = JSON.parse(text); } catch (e) {
+      console.error('Link upload returned non-JSON', { status: res.status, response: text.slice(0, 1000) });
+      throw new Error('Serveren returnerede HTTP ' + res.status);
     }
-    if(!res.ok || !data.ok){
-      toast('❌ Upload fejlede: '+(data.error||'HTTP '+res.status));
-      return;
-    }
-    toast('✅ '+file.name+' uploadet');
-  }catch(e){
-    console.error('docs upload netværksfejl:', e);
-    toast('❌ Upload fejl: '+e.message);
+    if (!res.ok || !data.ok) { throw new Error(data.error || 'Kunne ikke gemme link'); }
+    await loadDocs();
+    toast('✅ Link tilføjet');
+  } catch (e) {
+    console.error('docsAddLink fejl:', e);
+    toast('❌ ' + e.message);
   }
 }
 
 async function docsDelete(docId){
-  if(!confirm('Slet dette dokument?')) return;
-  var headers = {};
-  var token = localStorage.getItem('fcs-token');
-  if(token) headers['X-Auth-Token'] = token;
-  try{
-    var res = await fetch(BASE_URL+'docs.php?id='+encodeURIComponent(docId), {
-      method:'DELETE', credentials:'include', headers:headers
+  if (!confirm('Slet dette dokument?')) return;
+  try {
+    var res = await fetch(BASE_URL + 'docs.php?id=' + encodeURIComponent(docId), {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: authHeaders()
     });
-    var raw = await res.text();
+    var text = await res.text();
     var data;
-    try{ data = JSON.parse(raw); }catch(parseErr){
-      console.error('docs delete — ugyldigt svar fra server:', {
-        status: res.status,
-        body: raw.substring(0, 500)
-      });
-      toast('❌ Serverfejl ved sletning — se konsol');
-      return;
+    try { data = JSON.parse(text); } catch (e) {
+      console.error('Document delete returned non-JSON', { status: res.status, response: text.slice(0, 1000) });
+      throw new Error('Serveren returnerede HTTP ' + res.status);
     }
-    if(!res.ok || !data.ok){
-      toast('❌ Sletning fejlede: '+(data.error||'HTTP '+res.status));
-      return;
-    }
-    toast('🗑️ Dokument slettet');
+    if (!res.ok || !data.ok) { throw new Error(data.error || 'Kunne ikke slette dokumentet'); }
     await loadDocs();
-  }catch(e){
-    console.error('docs delete netværksfejl:', e);
-    toast('❌ '+e.message);
+    toast('🗑️ Dokument slettet');
+  } catch (e) {
+    console.error('docsDelete fejl:', e);
+    toast('❌ ' + e.message);
   }
 }
 
-function docsAddLink(){
-  var url = prompt('Indsæt URL:');
-  if(!url || !url.trim()) return;
-  var name = prompt('Navn til linket:', url);
-  if(!name) name = url;
-  fetch(BASE_URL+'docs.php?upload=1', {
-    method:'POST', credentials:'include',
-    headers:Object.assign({'Content-Type':'application/json'}, authHeaders()),
-    body:JSON.stringify({type:'link', url:url.trim(), name:name.trim()})
-  }).then(function(r){ return r.text(); }).then(function(raw){
-    var data; try{ data=JSON.parse(raw); }catch(e){ toast('❌ Serverfejl'); return; }
-    if(data.ok){ loadDocs(); toast('🔗 Link tilføjet'); }
-    else toast('❌ '+(data.error||'Fejl'));
-  }).catch(function(e){ toast('❌ '+e.message); });
-}
-
-document.addEventListener('click', function(e){
-  var btn = e.target.closest('[data-docsdel]');
-  if(btn){ docsDelete(btn.getAttribute('data-docsdel')); }
-});
-
-
-
-function toggleSidebar(){
-  var sb  = document.getElementById('sidebar');
-  var btn = document.getElementById('menuBtn');
-  var ov  = document.getElementById('sbOverlay');
-  if(!sb) return;
-  var isMob = window.innerWidth <= 700;
-  if(isMob){
-    var open = sb.classList.toggle('mobile-open');
-    if(ov)  ov.classList.toggle('active', open);
-    if(btn) btn.classList.toggle('open', open);
-  } else {
-    var collapsed = sb.classList.toggle('collapsed');
-    if(btn) btn.classList.toggle('open', !collapsed);
-  }
-}
-
-function toggleMobileSidebar(){ toggleSidebar(); }
-function toggleMobile(){ toggleSidebar(); }
-
-function klubSetupAnnuller(){
-  document.getElementById('klubSetupOverlay').style.display = 'none';
-  if(currentRole){
-    // Logget ind — gå til spillere
-    switchTab('spillere');
-  } else {
-    // Ikke logget ind — vis login
-    document.getElementById('loginOverlay').style.display = 'flex';
-  }
-}
-
-function klubSetupPreview(){
-  var navn    = (document.getElementById('klub-setup-navn')    ||{value:''}).value || 'Min Klub';
-  var primary = (document.getElementById('klub-setup-primary') ||{value:'#4B5563'}).value || '#4B5563';
-  var hdr     = document.getElementById('klub-setup-hdr');
-  var nameP   = document.getElementById('klub-setup-name-preview');
-  var logoP   = document.getElementById('klub-setup-logo-preview');
-  if(hdr)   hdr.style.background = primary;
-  if(nameP) nameP.textContent    = navn;
-  if(logoP){
-    if(_klubLogoDataUrl){
-      logoP.innerHTML = '<img src="'+_klubLogoDataUrl+'" style="width:100%;height:100%;object-fit:cover;">';
-    } else {
-      logoP.innerHTML = '⚽';
-    }
-  }
-  var gemBtn = document.getElementById('klub-setup-gem-btn');
-  if(gemBtn) gemBtn.style.background = primary;
-  var ph = document.getElementById('klub-setup-primary-hex');
-  var sc = document.getElementById('klub-setup-secondary');
-  var sh = document.getElementById('klub-setup-secondary-hex');
-  if(ph) ph.value = primary;
-  if(sh && sc) sh.value = sc.value;
-}
-
-function klubSetupHexInput(val, type){
-  if(/^#[0-9A-Fa-f]{6}$/.test(val)){
-    var el = document.getElementById('klub-setup-'+type);
-    if(el){ el.value = val; klubSetupPreview(); }
-  }
-}
-
-function klubSetupLogoValgt(input){
-  var file = input.files[0];
-  if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e){
-    var img = new Image();
-    img.onload = function(){
-      var canvas = document.createElement('canvas');
-      var max = 400;
-      var scale = Math.min(max/img.width, max/img.height, 1);
-      canvas.width  = Math.round(img.width*scale);
-      canvas.height = Math.round(img.height*scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      _klubLogoDataUrl = canvas.toDataURL('image/png');
-      var lbl = document.getElementById('klub-setup-logo-label');
-      if(lbl) lbl.textContent = '✅ Logo valgt';
-      klubSetupPreview();
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-
-
-function klubSetupNulstil(){
-  if(!confirm('Nulstil klubdesign til standard?\n\nNavn, farver og logo slettes fra denne enhed.')) return;
-  try{ localStorage.removeItem('fcs-klub-settings'); }catch(e){}
-  _klubLogoDataUrl = null;
-  // Nulstil CSS variabler
-  var root = document.documentElement;
-  root.style.removeProperty('--navy');
-  root.style.removeProperty('--navy-mid');
-  root.style.removeProperty('--navy-light');
-  root.style.removeProperty('--yellow');
-  root.style.removeProperty('--text');
-  root.style.removeProperty('--text-mid');
-  // Nulstil header og login
-  var nameEl = document.getElementById('hdr-club-name');
-  var subEl  = document.getElementById('hdr-club-sub');
-  var crest  = document.getElementById('hdr-crest-img');
-  if(nameEl) nameEl.textContent = 'Min Klub';
-  if(subEl)  subEl.textContent  = 'Spillerstyring';
-  if(crest){ crest.style.background = '#E5E7EB'; crest.innerHTML = '<span style="font-size:16px;">⚽<\/span>'; }
-  document.getElementById('klubSetupOverlay').style.display = 'none';
-  toast('✅ Klubdesign nulstillet');
-}
-
-async function loadActivityLog(){
-  var el = document.getElementById('activity-log-list');
-  if(!el) return;
-  el.innerHTML = '<div style="font-size:11px;color:var(--text-soft);padding:8px 0;">Henter log...<\/div>';
-  try{
-    var res = await fetch(AUTH_URL+'?action=activity_log', {credentials:'include', headers:authHeaders()});
-    var data = await res.json();
-    if(!data.ok || !data.log || !data.log.length){
-      el.innerHTML = '<div style="font-size:11px;color:var(--text-soft);padding:8px 0;">Ingen aktivitet endnu<\/div>';
-      return;
-    }
-    el.innerHTML = data.log.map(function(entry){
-      return '<div style="padding:5px 0;border-bottom:1px solid var(--g100);font-size:10px;">' +
-        '<span style="color:var(--text-soft);">' + (entry.ts||'') + '<\/span> ' +
-        '<strong>' + (entry.username||'') + '<\/strong> ' + (entry.note||entry.action||'') +
-      '<\/div>';
-    }).join('');
-  }catch(e){
-    el.innerHTML = '<div style="font-size:11px;color:#dc2626;padding:8px 0;">Fejl: '+e.message+'<\/div>';
-  }
-}
-
-
-function klubSetupGem(){
-  var overlay = document.getElementById('klubSetupOverlay');
-  var foerstgang = overlay && overlay.dataset.foerstgang === '1';
-  var navn = (document.getElementById('klub-setup-navn')||{value:''}).value.trim();
-  if(!navn){ toast('⚠️ Skriv venligst et klubnavn'); return; }
-  var settings = {
-    navn:      navn,
-    sub:       (document.getElementById('klub-setup-sub')||{value:'Spillerstyring'}).value || 'Spillerstyring',
-    primary:   (document.getElementById('klub-setup-primary')||{value:'#4B5563'}).value   || '#4B5563',
-    secondary: (document.getElementById('klub-setup-secondary')||{value:'#9CA3AF'}).value || '#9CA3AF',
-    logo:      _klubLogoDataUrl || null
-  };
-  try{ localStorage.setItem('fcs-klub-settings', JSON.stringify(settings)); }catch(e){}
-  if(currentRole === 'admin'){
-    if(!window._appSettings) window._appSettings = {};
-    window._appSettings.klubDesign = settings;
-    saveToServer(true);
-  }
-  klubBrandingApply(settings);
-  if(overlay) overlay.style.display = 'none';
-  if(foerstgang){
-    var lo = document.getElementById('loginOverlay');
-    if(lo) lo.style.display = 'flex';
-    toast('✅ Velkommen! Log nu ind for at fortsætte');
-  } else {
-    if(currentRole) switchTab('spillere');
-    toast('✅ Klubopsætning gemt');
-  }
-}
-
-
-// ── Timer Modal ────────────────────────────────────────────────────
-var _tmKampId=null, _tmIsCup=false, _tmCupId=null, _tmHoldId=null;
-
-function _tmField(type,pid,val,label){
-  return '<div style="background:var(--g50);border:1px solid var(--g200);border-radius:7px;padding:6px;text-align:center;">'+
-    '<div style="font-size:9px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">'+label+'</div>'+
-    '<div style="display:flex;align-items:center;justify-content:center;gap:6px;">'+
-      '<button data-tmadj="'+type+'" data-tmpid="'+pid+'" data-tmdelta="-1" style="width:26px;height:26px;border:1px solid var(--g300);border-radius:5px;background:#fff;cursor:pointer;font-size:16px;line-height:1;font-family:inherit;">−</button>'+
-      '<span id="tmv-'+type+'-'+pid+'" style="min-width:30px;text-align:center;font-size:14px;font-weight:700;">'+val+'</span>'+
-      '<button data-tmadj="'+type+'" data-tmpid="'+pid+'" data-tmdelta="1" style="width:26px;height:26px;border:1px solid var(--g300);border-radius:5px;background:#fff;cursor:pointer;font-size:16px;line-height:1;font-family:inherit;">+</button>'+
-    '</div></div>';
-}
-
-function _tmAdjust(type,pid,delta){
-  var el=document.getElementById('tmv-'+type+'-'+pid);
-  if(!el) return;
-  el.textContent=Math.max(0,(parseInt(el.textContent)||0)+delta);
-}
-
-// ──────────────────────────────────────────────────────────────────
-
-
-// ═══════════════════════════════════════════════════════════════════
-// AKTIV TIMER — kører i baggrunden, modal viser live-tal
-// ═══════════════════════════════════════════════════════════════════
-var _timerCtx=null, _timerPlayers=[], _timerStarters=[], _timerState={},
-    _timerStats={},   // {pid: {maal,skud,assists,afl,vende}}
-    _timerInterval=null, _timerModalOpen=false;
-
-// ── Hent startere fra board-opstilling ─────────────────────────────
-function _getBoardStartersAndSubs(kampName){
-  var saved=(window._boardLineups||{})[kampName];
-  if(saved&&saved.lineup&&!saved[1]) saved[1]=saved;
-  var h1=saved&&saved[1];
-  return {starterIds:h1?Object.values(h1.lineup||{}).filter(Boolean):[],subIds:h1?(h1.subs||[]):[]};
-}
-
-// ── Åbn timer modal — kamp ──────────────────────────────────────────
-function openKampTimerModal(kampId){
-  var kamp=matches.find(function(k){return k.id===kampId;});
-  if(!kamp){toast('⚠️ Kamp ikke fundet');return;}
-  if(!_timerCtx||_timerCtx.kampId!==kampId){
-    _timerCtx={type:'match',kampId:kampId,kampName:kamp.name,resultat:kamp.resultat||''};
-    // Alle udtagne til kampen, sorteret alfabetisk
-    var udtagne=players.filter(function(p){
-      var m=((p.stats||{}).matches||[]).find(function(m){return m.name===kamp.name;});
-      return m&&m.udtaget==='ja';
-    }).sort(function(a,b){return a.name.localeCompare(b.name,'da');});
-    _timerPlayers=udtagne;
-    // Default: alle markeret som startere (brugeren afkrydser selv hvem der starter)
-    _timerStarters=udtagne.map(function(p){return p.id;});
-    _timerState={};_timerStats={};
-    _timerPlayers.forEach(function(p){
-      var sv=((p.stats||{}).kampStats||{})[kamp.name]||{};
-      _timerState[p.id]={running:false,accumulated:(sv.min||0)*60000,startedAt:null};
-      _timerStats[p.id]={maal:sv.maal||0,skud:sv.skud||0,assists:sv.assists||0,afl:sv.afl||0,vende:sv.vende||0};
-    });
-  }
-  _renderTimerModal(kamp.name||kamp.opponent||'Kamp',
-    kamp.date?new Date(kamp.date).toLocaleDateString('da-DK',{day:'numeric',month:'short'}):'');
-}
-
-// ── Åbn timer modal — cup ───────────────────────────────────────────
-// Cup: radio-markering vælger hvem der er startere
-function openCupTimerModal(cupId,holdId,kampId){
-  var hold=getCupHold(cupId,holdId);
-  var kamp=hold?(hold.puljeKampe||[]).find(function(k){return k.id===kampId;}):null;
-  if(!kamp){toast('⚠️ Cup-kamp ikke fundet');return;}
-  if(!_timerCtx||_timerCtx.kampId!==kampId){
-    _timerCtx={type:'cup',kampId:kampId,cupId:cupId,holdId:holdId,resultat:kamp.resultat||''};
-    var allIds=hold.players||[];
-    _timerPlayers=allIds.map(function(pid){return players.find(function(p){return p.id===pid;});}).filter(Boolean);
-    // Default: første 11 er startere
-    _timerStarters=_timerPlayers.slice(0,11).map(function(p){return p.id;});
-    _timerState={};_timerStats={};
-    _timerPlayers.forEach(function(p){
-      var sv=(kamp.stats||{})[p.id]||{};
-      _timerState[p.id]={running:false,accumulated:((kamp.minutes||{})[p.id]||0)*60000,startedAt:null};
-      _timerStats[p.id]={maal:(kamp.goals||{})[p.id]||sv.maal||0,skud:sv.skud||0,assists:sv.assists||0,afl:sv.afl||0,vende:sv.vende||0};
-    });
-  }
-  _renderTimerModal(kamp.modstander||'Puljekamp',kamp.dato||'');
-}
-
-// ── Render modal ────────────────────────────────────────────────────
-function _renderTimerModal(title,sub){
-  var el=document.getElementById('timer-modal-overlay');
-  if(!el) return;
-  document.getElementById('timer-modal-title').textContent='⏱️ '+title;
-  document.getElementById('timer-modal-sub').textContent=sub;
-  var resEl=document.getElementById('timer-modal-resultat');
-  if(resEl&&_timerCtx) resEl.value=_timerCtx.resultat||'';
-  _buildTimerPlayerList();
-  el.style.display='flex';
-  _timerModalOpen=true;
-  if(_timerInterval) clearInterval(_timerInterval);
-  _timerInterval=setInterval(_tickTimerModal,1000);
-}
-
-// ── Byg spillerliste ────────────────────────────────────────────────
-function _buildTimerPlayerList(){
-  var wrap=document.getElementById('timer-modal-players');
-  if(!wrap) return;
-  var isCup=_timerCtx&&_timerCtx.type==='cup';
-
-  function mkStats(p){
-    var st=_timerStats[p.id]||{};
-    function fld(key,label){
-      return '<div style="text-align:center;">'
-        +'<div style="font-size:8px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:2px;">'+label+'</div>'
-        +'<div style="display:flex;align-items:center;gap:2px;">'
-          +'<button data-sAdj="'+key+'" data-sPid="'+p.id+'" data-sDelta="-1" style="width:22px;height:22px;border:1px solid var(--g200);border-radius:4px;background:#fff;cursor:pointer;font-size:14px;line-height:1;">−</button>'
-          +'<span id="ts-'+key+'-'+p.id+'" style="min-width:24px;text-align:center;font-size:12px;font-weight:700;">'+(st[key]||0)+'</span>'
-          +'<button data-sAdj="'+key+'" data-sPid="'+p.id+'" data-sDelta="1" style="width:22px;height:22px;border:1px solid var(--g200);border-radius:4px;background:#fff;cursor:pointer;font-size:14px;line-height:1;">+</button>'
-        +'</div></div>';
-    }
-    return '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--g50);border-radius:6px;padding:6px;margin-top:4px;">'
-      +fld('maal','⚽ Mål')+fld('skud','🎯 Skud')+fld('assists','🤝 Ass.')+fld('afl','📤 Afl.')+fld('vende','🔄 Vende')
-      +'</div>';
-  }
-
-  function mkRow(p){
-    var st=_timerState[p.id]||{running:false,accumulated:0,startedAt:null};
-    var ms=st.accumulated+(st.running?(Date.now()-st.startedAt):0);
-    var mins=Math.floor(ms/60000),secs=Math.floor((ms%60000)/1000);
-    var hasTime=ms>=1000;
-    var timeStr=mins+':'+(secs<10?'0':'')+secs;
-    var dotColor=st.running?'#16A34A':(hasTime?'#F5C400':'#D1D5DB');
-    var dotAnim=st.running?' animation:pulse-green 1s infinite;':'';
-    var dot='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+dotColor+';flex-shrink:0;'+dotAnim+'"></span>';
-    var actionBtn=st.running
-      ?'<button data-timer-stop="'+p.id+'" style="padding:4px 8px;background:#FEE2E2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">⏹</button>'
-      :'<button data-timer-start="'+p.id+'" style="padding:4px 8px;background:#DCFCE7;color:#16A34A;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">▶</button>';
-    var delBtn=hasTime?'<button data-timer-del="'+p.id+'" title="Slet tid" style="padding:4px 6px;background:#fff;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;font-size:10px;cursor:pointer;">🗑</button>':'';
-    var isChecked=_timerStarters.indexOf(p.id)!==-1;
-    var checkbox='<input type="checkbox" data-timer-radio="'+p.id+'" '+(isChecked?'checked':'')
-      +' style="width:16px;height:16px;accent-color:var(--navy);cursor:pointer;flex-shrink:0;" title="Marker til samlet start">';
-    return '<div style="padding:8px 0;border-bottom:1px solid var(--g100);">'
-      +'<div style="display:flex;align-items:center;gap:6px;">'
-        +checkbox+dot
-        +'<div style="flex:1;min-width:0;">'+(p.jersey?'<strong style="font-size:11px;">#'+p.jersey+'</strong> ':'')+p.name+'</div>'
-        +'<span id="tmr-'+p.id+'" style="font-size:13px;font-weight:700;font-family:monospace;min-width:38px;text-align:right;color:'+(st.running?'#16A34A':(hasTime?'#854D0E':'var(--g400)'))+';">'+timeStr+'</span>'
-        +'<div style="display:flex;gap:3px;">'+actionBtn+delBtn+'</div>'
-      +'</div>'
-      +mkStats(p)
-      +'</div>';
-  }
-
-  var checkedCount=_timerStarters.length;
-  var html='<div style="font-size:10px;color:var(--text-soft);margin-bottom:8px;background:var(--g50);border-radius:6px;padding:6px 8px;">☑️ Markér de spillere du vil starte samlet — tryk <strong>▶ Start markerede</strong></div>';
-  html+='<div style="display:flex;gap:6px;margin-bottom:12px;">'
-    +'<button onclick="_timerStartAll()" style="flex:1;padding:9px;background:#0A2342;color:#F5C400;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">▶ Start markerede ('+checkedCount+')</button>'
-    +'<button onclick="_timerPauseAll()" style="flex:1;padding:9px;background:#FEF9C3;color:#854D0E;border:1.5px solid #F5C400;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">⏸ Pause alle</button>'
-    +'</div>';
-  if(_timerPlayers.length){
-    html+='<div style="font-size:9px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Udtagne spillere ('+_timerPlayers.length+')</div>';
-    html+=_timerPlayers.map(function(p){return mkRow(p);}).join('');
-  } else {
-    html+='<div style="text-align:center;padding:20px;color:var(--text-soft);font-size:12px;">Ingen udtagne spillere.<br><small>Udtag spillere under '+(isCup?'Cup':'Kampe')+'-fanen først.</small></div>';
-  }
-  wrap.innerHTML=html;
-}
-
-// ── Tick ────────────────────────────────────────────────────────────
-function _tickTimerModal(){
-  if(!_timerModalOpen) return;
-  _timerPlayers.forEach(function(p){
-    var st=_timerState[p.id]; if(!st||!st.running) return;
-    var ms=st.accumulated+(Date.now()-st.startedAt);
-    var el=document.getElementById('tmr-'+p.id);
-    if(el) el.textContent=Math.floor(ms/60000)+':'+(Math.floor((ms%60000)/1000)<10?'0':'')+Math.floor((ms%60000)/1000);
-  });
-}
-
-// ── Individuel timer start/stop/del ────────────────────────────────
-function _timerStart(pid){var st=_timerState[pid];if(!st||st.running)return;st.running=true;st.startedAt=Date.now();_buildTimerPlayerList();}
-function _timerStop(pid){var st=_timerState[pid];if(!st||!st.running)return;st.accumulated+=Date.now()-st.startedAt;st.running=false;st.startedAt=null;_buildTimerPlayerList();}
-function _timerDel(pid){if(!confirm('Slet gemt spilletid?'))return;var st=_timerState[pid];if(!st)return;st.running=false;st.startedAt=null;st.accumulated=0;_buildTimerPlayerList();}
-
-// ── Stats adjust ────────────────────────────────────────────────────
-function _timerStatAdj(key,pid,delta){
-  if(!_timerStats[pid]) _timerStats[pid]={maal:0,skud:0,assists:0,afl:0,vende:0};
-  _timerStats[pid][key]=Math.max(0,(_timerStats[pid][key]||0)+delta);
-  var el=document.getElementById('ts-'+key+'-'+pid);
-  if(el) el.textContent=_timerStats[pid][key];
-}
-
-// ── Samlet start (starters) / pause alle ────────────────────────────
-function _timerStartAll(){
-  // Læs checkboxes og opdater _timerStarters
-  _timerStarters=[];
-  _timerPlayers.forEach(function(p){
-    var cb=document.querySelector('[data-timer-radio="'+p.id+'"]');
-    if(cb&&cb.checked) _timerStarters.push(p.id);
-  });
-  _timerStarters.forEach(function(pid){
-    var st=_timerState[pid]; if(st&&!st.running){st.running=true;st.startedAt=Date.now();}
-  });
-  _buildTimerPlayerList();
-}
-function _timerPauseAll(){
-  _timerPlayers.forEach(function(p){
-    var st=_timerState[p.id]; if(st&&st.running){st.accumulated+=Date.now()-st.startedAt;st.running=false;st.startedAt=null;}
-  });
-  _buildTimerPlayerList();
-}
-
-// ── Luk modal (timer kører videre) ──────────────────────────────────
-function closeTimerModal(){
-  _timerModalOpen=false;
-  if(_timerInterval){clearInterval(_timerInterval);_timerInterval=null;}
-  var el=document.getElementById('timer-modal-overlay');
-  if(el) el.style.display='none';
-  var resEl=document.getElementById('timer-modal-resultat');
-  if(resEl&&_timerCtx) _timerCtx.resultat=resEl.value.trim();
-}
-
-// ── Gem alt ─────────────────────────────────────────────────────────
-function gemTimerModalStats(){
-  // Stop alle kørende timers
-  _timerPlayers.forEach(function(p){
-    var st=_timerState[p.id];
-    if(st&&st.running){st.accumulated+=Date.now()-st.startedAt;st.running=false;st.startedAt=null;}
-  });
-  var resultat=(document.getElementById('timer-modal-resultat')||{}).value||'';
-  if(!_timerCtx){toast('⚠️ Ingen aktiv kamp');return;}
-
-  if(_timerCtx.type==='cup'){
-    var hold=getCupHold(_timerCtx.cupId,_timerCtx.holdId);
-    var kamp=hold?(hold.puljeKampe||[]).find(function(k){return k.id===_timerCtx.kampId;}):null;
-    if(!kamp){toast('⚠️ Cup-kamp ikke fundet');return;}
-    if(resultat) kamp.resultat=resultat;
-    if(!kamp.minutes) kamp.minutes={};
-    if(!kamp.goals) kamp.goals={};
-    if(!kamp.stats) kamp.stats={};
-    // Gem til kamp-objekt
-    _timerPlayers.forEach(function(p){
-      var mins=Math.round((_timerState[p.id]||{accumulated:0}).accumulated/60000);
-      kamp.minutes[p.id]=mins;
-      kamp.goals[p.id]=(_timerStats[p.id]||{}).maal||0;
-      kamp.stats[p.id]=_timerStats[p.id]||{};
-    });
-    // Gem OGSÅ til spillerkortet kampStats (med cupnavn som nøgle)
-    var cup=cups.find(function(cu){return cu.id===_timerCtx.cupId;});
-    var cupNavn=cup?cup.name:'Cup';
-    var kampKey=cupNavn+' · '+(_timerCtx.kampName||kamp.modstander||'kamp');
-    _timerPlayers.forEach(function(p){
-      if(!p.stats) p.stats={};
-      if(!p.stats.kampStats) p.stats.kampStats={};
-      var ts=_timerStats[p.id]||{};
-      var mins=Math.round((_timerState[p.id]||{accumulated:0}).accumulated/60000);
-      p.stats.kampStats[kampKey]={
-        min:mins, maal:ts.maal||0, skud:ts.skud||0,
-        assists:ts.assists||0, afl:ts.afl||0, vende:ts.vende||0
-      };
-    });
-    saveCups(); saveAll(); render(); renderCups();
-    toast('✅ Cup spilletid og stats gemt');
-  } else {
-    var kamp2=matches.find(function(k){return k.id===_timerCtx.kampId;});
-    if(!kamp2){toast('⚠️ Kamp ikke fundet');return;}
-    if(resultat) kamp2.resultat=resultat;
-    var kampName=kamp2.name||'';
-    _timerPlayers.forEach(function(p){
-      if(!p.stats) p.stats={};
-      if(!p.stats.kampStats) p.stats.kampStats={};
-      if(!p.stats.kampStats[kampName]) p.stats.kampStats[kampName]={};
-      var ks=p.stats.kampStats[kampName];
-      var ts=_timerStats[p.id]||{};
-      ks.min=Math.round((_timerState[p.id]||{accumulated:0}).accumulated/60000);
-      ks.maal=ts.maal||0; ks.skud=ts.skud||0; ks.assists=ts.assists||0;
-      ks.afl=ts.afl||0; ks.vende=ts.vende||0;
-    });
-    saveAll(); render(); renderKampe(); saveToServer(true);
-    toast('✅ Spilletid og stats gemt');
-  }
-  _timerCtx=null;_timerState={};_timerPlayers=[];_timerStarters=[];_timerStats={};
-  closeTimerModal();
-}
-
-// ── Click delegation ────────────────────────────────────────────────
-document.addEventListener('click',function(e){
-  var s=e.target.closest('[data-timer-start]');  if(s){_timerStart(s.getAttribute('data-timer-start'));return;}
-  var t=e.target.closest('[data-timer-stop]');   if(t){_timerStop(t.getAttribute('data-timer-stop'));return;}
-  var d=e.target.closest('[data-timer-del]');    if(d){_timerDel(d.getAttribute('data-timer-del'));return;}
-  var a=e.target.closest('[data-sAdj]');
-  if(a){_timerStatAdj(a.getAttribute('data-sAdj'),a.getAttribute('data-sPid'),parseInt(a.getAttribute('data-sDelta')));return;}
-});
-(function(){if(document.getElementById('tps'))return;var s=document.createElement('style');s.id='tps';
-s.textContent='@keyframes pulse-green{0%,100%{opacity:1}50%{opacity:.3}}';document.head.appendChild(s);})();
-// ═══════════════════════════════════════════════════════════════════
-
-
-
-// ── Dokumenter modal ──────────────────────────────────────────────────────────
+// ── Dokumenter modal ────────────────────────────────────────────────────────
 function openDocsModal(){
   var el=document.getElementById('docs-modal-overlay');
   if(!el) return;
@@ -7903,15 +7473,6 @@ function openDocsModal(){
 function closeDocsModal(){
   var el=document.getElementById('docs-modal-overlay');
   if(el) el.style.display='none';
-}
-
-async function loadDocs(){
-  try{
-    var res=await fetch(BASE_URL+'docs.php',{credentials:'include',headers:authHeaders()});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    var data=await res.json();
-    if(data.ok&&Array.isArray(data.docs)) docs=data.docs;
-  }catch(e){ console.warn('loadDocs fejl:',e); }
 }
 
 function renderDocsModal(){
@@ -7926,7 +7487,7 @@ function renderDocsModal(){
     var ext=d.type==='link'?'link':(d.name||'').split('.').pop().toLowerCase();
     var icons={pdf:'📄',docx:'📝',doc:'📝',pptx:'📊',ppt:'📊',xlsx:'📈',xls:'📈',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',link:'🔗',mp4:'🎬',txt:'📃',csv:'📊'};
     var icon=icons[ext]||'📁';
-    var href=d.type==='link'?d.url:BASE_URL+'docs.php?download='+encodeURIComponent(d.filename||'');
+    var href=d.type==='link'?d.url:BASE_URL+'docs.php?id='+encodeURIComponent(d.id||'');
     var size=d.size?(d.size>1048576?(d.size/1048576).toFixed(1)+' MB':d.size>1024?Math.round(d.size/1024)+' KB':d.size+' B'):'';
     var date=d.uploadedAt?new Date(d.uploadedAt).toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'}):'';
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--g100);">'
@@ -7935,85 +7496,11 @@ function renderDocsModal(){
         +'<a href="'+href+'" target="_blank" style="font-size:13px;font-weight:700;color:var(--navy);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">'+d.name+'</a>'
         +'<div style="font-size:10px;color:var(--text-soft);">'+(size?size+' · ':'')+date+(d.uploadedBy?' · '+d.uploadedBy:'')+'</div>'
       +'</div>'
-      +(ce?'<button onclick="docsDelete(\''+encodeURIComponent(d.filename||d.id||'')+'\',\''+d.type+'\')" style="background:none;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;">🗑️</button>':'')
+      +(ce?'<button onclick="docsDelete(\"'+d.id+'\")" style="background:none;border:1px solid #fecaca;color:#dc2626;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;flex-shrink:0;">🗑️<\/button>':'')
     +'</div>';
   }).join('');
 }
 
-function docsUpload(input){
-  var files=input.files;
-  if(!files||!files.length) return;
-  var tooBig=[];
-  for(var i=0;i<files.length;i++){
-    if(files[i].size>20*1024*1024) tooBig.push(files[i].name);
-  }
-  if(tooBig.length){ toast('⚠️ For stor (maks 20 MB): '+tooBig.join(', ')); return; }
-  toast('⏳ Uploader '+files.length+' fil'+(files.length!==1?'er':'')+'…');
-  var promises=[];
-  for(var j=0;j<files.length;j++) promises.push(_docsUploadOne(files[j]));
-  Promise.all(promises).then(function(){
-    input.value='';
-    return loadDocs();
-  }).then(function(){ renderDocsModal(); toast('✅ Uploadet'); })
-  .catch(function(err){ toast('❌ '+err.message); });
-}
-
-async function _docsUploadOne(file){
-  var fd=new FormData();
-  fd.append('file',file);
-  // docs.php expects POST ?upload with $_FILES['file']
-  var res=await fetch(BASE_URL+'docs.php?upload=1',{method:'POST',credentials:'include',body:fd});
-  var text=await res.text();
-  var data;
-  try{ data=JSON.parse(text); }catch(e){ throw new Error('Server svar ugyldigt: '+text.slice(0,80)); }
-  if(!data.ok) throw new Error(data.error||'Upload fejlede');
-  // After upload, add metadata to docs list via POST body
-  var meta={id:'doc-'+Date.now(),name:file.name,filename:data.filename,type:'file',size:file.size,uploadedAt:new Date().toISOString(),uploadedBy:localStorage.getItem('fcs-user')||''};
-  await _docsSaveMeta(meta);
-}
-
-async function _docsSaveMeta(newDoc){
-  await loadDocs();
-  docs.push(newDoc);
-  var res=await fetch(BASE_URL+'docs.php',{
-    method:'POST',credentials:'include',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(docs)
-  });
-  var data=await res.json();
-  if(!data.ok) throw new Error(data.error||'Gem metadata fejlede');
-}
-
-function docsAddLink(){
-  var url=prompt('Indsæt link (URL):');
-  if(!url||!url.trim()) return;
-  if(!/^https?:\/\//i.test(url.trim())) url='https://'+url.trim();
-  var name=prompt('Navn på linket:',url.replace(/^https?:\/\//,'').split('/')[0]);
-  if(!name||!name.trim()) return;
-  var meta={id:'link-'+Date.now(),name:name.trim(),url:url.trim(),type:'link',uploadedAt:new Date().toISOString(),uploadedBy:localStorage.getItem('fcs-user')||''};
-  _docsSaveMeta(meta).then(function(){
-    loadDocs().then(function(){ renderDocsModal(); toast('✅ Link tilføjet'); });
-  }).catch(function(err){ toast('❌ '+err.message); });
-}
-
-function docsDelete(filename, type){
-  if(!confirm('Slet dette dokument?')) return;
-  // Remove from metadata
-  docs=docs.filter(function(d){ return (d.filename||d.id)!==decodeURIComponent(filename); });
-  fetch(BASE_URL+'docs.php',{
-    method:'POST',credentials:'include',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(docs)
-  }).then(function(r){ return r.json(); }).then(function(data){
-    if(!data.ok){ toast('❌ '+(data.error||'Fejl ved sletning')); return; }
-    // Also delete the actual file if it's a file (not link)
-    if(type!=='link'&&filename){
-      fetch(BASE_URL+'docs.php?delete='+filename,{method:'DELETE',credentials:'include'}).catch(function(){});
-    }
-    renderDocsModal();
-    toast('🗑️ Slettet');
-  }).catch(function(err){ toast('❌ '+err.message); });
-}
 // ─────────────────────────────────────────────────────────────────────────────
 
 </script>
