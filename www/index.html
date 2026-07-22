@@ -6302,7 +6302,7 @@ async function _docsUploadOne(file){
   if(file.size > 20*1024*1024){ toast('⚠️ '+file.name+' er over 20 MB — spring over'); return; }
   var fd = new FormData();
   fd.append('file', file);
-  // Vigtigt: authHeaders() uden Content-Type — browseren sætter multipart boundary selv
+  // Ingen Content-Type — browseren sætter multipart boundary selv
   var headers = {};
   var token = localStorage.getItem('fcs-token');
   if(token) headers['X-Auth-Token'] = token;
@@ -6312,34 +6312,55 @@ async function _docsUploadOne(file){
     });
     var raw = await res.text();
     var data;
-    try{ data = JSON.parse(raw); }catch(e){
-      console.error('docs upload svar (ikke JSON):', raw);
-      toast('❌ Serverfejl ved upload — se konsol for detaljer');
+    try{ data = JSON.parse(raw); }catch(parseErr){
+      console.error('docs upload — ugyldigt svar fra server:', {
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        body: raw.substring(0, 500)
+      });
+      toast('❌ Serverfejl ved upload (ugyldigt svar) — se konsol');
       return;
     }
-    if(!data.ok){ toast('❌ Upload fejlede: '+(data.error||'ukendt fejl')); return; }
+    if(!res.ok || !data.ok){
+      toast('❌ Upload fejlede: '+(data.error||'HTTP '+res.status));
+      return;
+    }
     toast('✅ '+file.name+' uploadet');
-  }catch(e){ toast('❌ Upload fejl: '+e.message); }
+  }catch(e){
+    console.error('docs upload netværksfejl:', e);
+    toast('❌ Upload fejl: '+e.message);
+  }
 }
 
 async function docsDelete(docId){
   if(!confirm('Slet dette dokument?')) return;
-  var headers = authHeaders();
+  var headers = {};
+  var token = localStorage.getItem('fcs-token');
+  if(token) headers['X-Auth-Token'] = token;
   try{
     var res = await fetch(BASE_URL+'docs.php?id='+encodeURIComponent(docId), {
       method:'DELETE', credentials:'include', headers:headers
     });
     var raw = await res.text();
     var data;
-    try{ data = JSON.parse(raw); }catch(e){
-      console.error('docs delete svar (ikke JSON):', raw);
+    try{ data = JSON.parse(raw); }catch(parseErr){
+      console.error('docs delete — ugyldigt svar fra server:', {
+        status: res.status,
+        body: raw.substring(0, 500)
+      });
       toast('❌ Serverfejl ved sletning — se konsol');
       return;
     }
-    if(!data.ok){ toast('❌ Sletning fejlede: '+(data.error||'')); return; }
+    if(!res.ok || !data.ok){
+      toast('❌ Sletning fejlede: '+(data.error||'HTTP '+res.status));
+      return;
+    }
     toast('🗑️ Dokument slettet');
     await loadDocs();
-  }catch(e){ toast('❌ '+e.message); }
+  }catch(e){
+    console.error('docs delete netværksfejl:', e);
+    toast('❌ '+e.message);
+  }
 }
 
 function docsAddLink(){
