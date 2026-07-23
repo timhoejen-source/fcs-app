@@ -1497,7 +1497,7 @@ async function submitSkiftKodeord(){
   try{
     var res = await fetch(AUTH_URL + '?action=change_password', {
       method: 'POST', credentials: 'include', headers: authHeaders(),
-      body: JSON.stringify({ username: currentUser, current_password: current, new_password: newPw, confirm_password: confirm2 })
+      body: JSON.stringify({ username: localStorage.getItem('fcs-user') || '', current_password: current, new_password: newPw, confirm_password: confirm2 })
     });
     var raw = await res.text();
     var data;
