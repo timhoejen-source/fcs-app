@@ -36,7 +36,7 @@ Formålet er at sikre, at tekniske problemer bliver dokumenteret, undersøgt, pr
 
 ## FCS-001 – Dokumentisolering mellem klubber
 
-**Status: ⚠️ Verificeret
+**Status: ✅ Løst
 **Prioritet: Høj  
 **Område:** Backend / Dokumenter  
 **Fundet:** 20. juli 2026  
