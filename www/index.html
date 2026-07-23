@@ -51,6 +51,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--text);mi
 .menu-btn.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
 .layout{display:flex;min-height:calc(100vh - 52px);position:relative;}
 .sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--g200);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;transition:transform .3s ease,width .3s ease;max-height:calc(100vh - 52px);position:sticky;top:52px;align-self:flex-start;}
+/* Mobil sidebar */
+#sb-overlay{display:none;position:fixed;inset:0;background:rgba(10,35,66,.45);z-index:149;top:52px;}
+.sidebar.mob-open{transform:translateX(0)!important;}
+@media(max-width:767px){
+  .sidebar{position:fixed;top:52px;left:0;bottom:0;z-index:150;transform:translateX(-100%);}
+  .sidebar.mob-open{transform:translateX(0);}
+  .main{margin-left:0!important;}
+}
+
 .sidebar.collapsed{width:0;overflow:hidden;border:none;}
 .sb-overlay{display:none;position:fixed;inset:0;background:rgba(10,35,66,.45);z-index:150;top:52px;}
 .sb-section{border-bottom:1px solid var(--g200);}
@@ -786,6 +795,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 
 <div class="sb-overlay" id="sbOverlay" onclick="toggleMobile()"></div>
 
+<div id="sb-overlay"></div>
 <div class="layout">
   <div class="sidebar" id="sidebar">
 
@@ -1020,6 +1030,10 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
       </div>
     </div>
 
+    <!-- Min profil -->
+    <div id="sb-min-profil" style="padding:10px 16px;border-top:1px solid var(--g200);">
+      <button onclick="openMinProfilModal()" style="width:100%;padding:7px;background:var(--g50);border:1.5px solid var(--g200);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;color:var(--text-soft);cursor:pointer;text-align:left;">👤 Min profil</button>
+    </div>
     <div class="sb-toggle">
       <button class="btn-collapse" onclick="toggleSidebar()">◀ Skjul panel</button>
     </div>
@@ -1453,6 +1467,87 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+
+// ── Min profil ────────────────────────────────────────────────────────────────────────────────
+function openMinProfilModal(){
+  var el = document.getElementById('min-profil-overlay');
+  if(el){ el.style.display = 'flex'; }
+  ['pw-current','pw-new','pw-confirm'].forEach(function(id){
+    var f = document.getElementById(id); if(f) f.value = '';
+  });
+  var err = document.getElementById('pw-error');
+  if(err){ err.style.display = 'none'; err.textContent = ''; }
+}
+
+function closeMinProfilModal(){
+  var el = document.getElementById('min-profil-overlay');
+  if(el) el.style.display = 'none';
+}
+
+async function submitSkiftKodeord(){
+  var current  = (document.getElementById('pw-current')  || {}).value || '';
+  var newPw    = (document.getElementById('pw-new')       || {}).value || '';
+  var confirm2 = (document.getElementById('pw-confirm')   || {}).value || '';
+  var errEl    = document.getElementById('pw-error');
+  function showErr(msg){ if(errEl){ errEl.textContent=msg; errEl.style.display='block'; } }
+  if(!current || !newPw || !confirm2){ showErr('Alle felter skal udfyldes'); return; }
+  if(newPw.length < 8){ showErr('Nyt kodeord skal være mindst 8 tegn'); return; }
+  if(newPw !== confirm2){ showErr('De to nye kodeord er ikke ens'); return; }
+  if(errEl){ errEl.style.display = 'none'; }
+  try{
+    var res = await fetch(AUTH_URL + '?action=change_password', {
+      method: 'POST', credentials: 'include', headers: authHeaders(),
+      body: JSON.stringify({ username: currentUser, current_password: current, new_password: newPw, confirm_password: confirm2 })
+    });
+    var raw = await res.text();
+    var data;
+    try{ data = JSON.parse(raw); }catch(e){ showErr('Serverfejl'); return; }
+    if(!data.ok){ showErr(data.error || 'Kodeord kunne ikke ændres'); return; }
+    closeMinProfilModal();
+    toast('✅ Kodeord ændret');
+  }catch(e){ showErr('Netværksfejl: ' + e.message); }
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function toggleSidebar(){
+  var sb  = document.getElementById('sidebar');
+  var ov  = document.getElementById('sb-overlay');
+  var exp = document.getElementById('expandBtn');
+  if(!sb) return;
+  var isMobile = window.innerWidth < 768;
+  if(isMobile){
+    var isOpen = sb.classList.contains('mob-open');
+    sb.classList.toggle('mob-open', !isOpen);
+    if(ov){ ov.style.display = isOpen ? 'none' : 'block'; }
+  } else {
+    var isCollapsed = sb.classList.contains('collapsed');
+    sb.classList.toggle('collapsed', !isCollapsed);
+    if(exp){ exp.style.display = isCollapsed ? 'none' : 'flex'; }
+  }
+}
+
+function initSidebar(){
+  // Overlay klik lukker sidebar på mobil
+  var ov = document.getElementById('sb-overlay');
+  if(ov){
+    ov.addEventListener('click', function(){
+      var sb = document.getElementById('sidebar');
+      if(sb) sb.classList.remove('mob-open');
+      ov.style.display = 'none';
+    });
+  }
+  // expandBtn åbner sidebar igen på desktop
+  var exp = document.getElementById('expandBtn');
+  if(exp){
+    exp.addEventListener('click', function(){
+      var sb = document.getElementById('sidebar');
+      if(sb){ sb.classList.remove('collapsed'); }
+      exp.style.display = 'none';
+    });
+  }
+}
+
+
 async function clearActivityLog(){
   if(!confirm('Ryd hele aktivitetsloggen?')) return;
   try{
@@ -1556,6 +1651,7 @@ try{ _allowedTeams = JSON.parse(localStorage.getItem('fcs-allowed-teams')||'[]')
 
 // Startup: tjek PHP-session og gendan currentRole + allowed_teams
 document.addEventListener('DOMContentLoaded', async function(){
+  initSidebar();
   try{
     var res = await fetch(AUTH_URL+'?action=check', {credentials:'include', headers:authHeaders()});
     var data = await res.json();
@@ -7645,6 +7741,26 @@ document.addEventListener('click', function(e){
       <textarea id="kontakt-besked" rows="4" style="width:100%;padding:10px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
       <div id="kontakt-err" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none;"></div>
       <button onclick="submitKontakt()" style="width:100%;padding:12px;background:#4B5563;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">📤 Send besked</button>
+    </div>
+  </div>
+</div>
+
+<!-- Min profil modal -->
+<div id="min-profil-overlay" onclick="if(event.target===this)closeMinProfilModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9990;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:400px;box-shadow:0 24px 60px rgba(0,0,0,.3);">
+    <div style="background:var(--navy);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <span style="color:#fff;font-size:16px;font-weight:800;">👤 Min profil</span>
+      <button onclick="closeMinProfilModal()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;">&times;</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--g200);">🔑 Skift kodeord</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <label style="font-size:11px;font-weight:600;color:var(--text-soft);">Nuværende kodeord<br><input id="pw-current" type="password" autocomplete="current-password" style="width:100%;padding:8px 10px;border:1.5px solid var(--g200);border-radius:8px;font-size:13px;box-sizing:border-box;margin-top:3px;font-family:inherit;"></label>
+        <label style="font-size:11px;font-weight:600;color:var(--text-soft);">Nyt kodeord (min. 8 tegn)<br><input id="pw-new" type="password" autocomplete="new-password" style="width:100%;padding:8px 10px;border:1.5px solid var(--g200);border-radius:8px;font-size:13px;box-sizing:border-box;margin-top:3px;font-family:inherit;"></label>
+        <label style="font-size:11px;font-weight:600;color:var(--text-soft);">Gentag nyt kodeord<br><input id="pw-confirm" type="password" autocomplete="new-password" style="width:100%;padding:8px 10px;border:1.5px solid var(--g200);border-radius:8px;font-size:13px;box-sizing:border-box;margin-top:3px;font-family:inherit;"></label>
+        <div id="pw-error" style="display:none;color:#dc2626;font-size:12px;padding:6px 10px;background:#fef2f2;border-radius:6px;"></div>
+        <button onclick="submitSkiftKodeord()" style="width:100%;padding:10px;background:var(--navy);color:var(--yellow);border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Gem nyt kodeord</button>
+      </div>
     </div>
   </div>
 </div>
