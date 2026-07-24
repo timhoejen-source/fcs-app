@@ -853,12 +853,16 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
           Registrér klubbens DBU API-nøgle fra <strong>clubservice.dbu.dk</strong>. Hold- og pulje-ID sættes under Stilling-fanen.
         </div>
         <label style="font-size:11px;font-weight:700;color:var(--text-mid);display:block;margin-bottom:4px;">DBU API-nøgle</label>
-        <input type="text" id="dbu-api-key-inp"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-size:11px;font-family:monospace;box-sizing:border-box;margin-bottom:8px;"
-          oninput="document.getElementById('dbu-gem-status').textContent=''">
-        <div id="dbu-gem-status" style="font-size:11px;color:#16A34A;min-height:16px;margin-bottom:6px;"></div>
-        <button onclick="dbuGemIndstillinger()" style="width:100%;padding:8px;background:var(--navy);color:var(--yellow);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">💾 Gem API-nøgle</button>
+        <input type="password" id="dbu-api-key-inp"
+          placeholder="•••••••• (gemt)"
+          autocomplete="off" spellcheck="false"
+          style="width:100%;padding:8px;border:1.5px solid var(--g200);border-radius:7px;font-size:11px;font-family:monospace;box-sizing:border-box;margin-bottom:6px;">
+        <div id="dbu-api-key-status" style="font-size:10px;color:var(--text-soft);margin-bottom:6px;min-height:14px;"></div>
+        <div id="dbu-gem-status" style="font-size:11px;min-height:16px;margin-bottom:6px;"></div>
+        <div style="display:flex;gap:6px;">
+          <button id="dbu-gem-btn" onclick="dbuGemIndstillinger()" style="flex:1;padding:8px;background:var(--navy);color:var(--yellow);border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">💾 Gem nøgle</button>
+          <button id="dbu-test-btn" onclick="dbuTestForbindelse()" style="flex:1;padding:8px;background:var(--g100);color:var(--navy);border:1.5px solid var(--g200);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🔌 Test</button>
+        </div>
       </div>
     </div>
 
@@ -4642,14 +4646,58 @@ function dbuDelRaekke(i){
 }
 
 async function dbuGemIndstillinger(){
-  var inp = document.getElementById('dbu-api-key-inp');
-  var key = inp ? inp.value.trim() : '';
-  if(!key){ toast('⚠️ Angiv en API-nøgle'); return; }
-  appSettings.dbuApiKey = key;
-  saveToServer(true);
-  var st = document.getElementById('dbu-gem-status');
-  if(st) st.textContent = '✅ Gemt';
-  toast('✅ DBU API-nøgle gemt');
+  var inp    = document.getElementById('dbu-api-key-inp');
+  var btn    = document.getElementById('dbu-gem-btn');
+  var status = document.getElementById('dbu-gem-status');
+  var key    = inp ? inp.value.trim() : '';
+  function showStatus(msg, ok){
+    if(status){ status.textContent=msg; status.style.color=ok?'#16A34A':'#DC2626'; }
+  }
+  if(!key){ showStatus('\u26a0\ufe0f Angiv en API-n\u00f8gle', false); return; }
+  if(currentRole !== 'admin'){ showStatus('\u274c Kun administratorer m\u00e5 \u00e6ndre API-n\u00f8glen', false); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Gemmer\u2026'; }
+  showStatus('', true);
+  try{
+    if(!window._appSettings) window._appSettings={};
+    if(!window._appSettings.dbuApi) window._appSettings.dbuApi={};
+    window._appSettings.dbuApi.apiKey = key;
+    await saveToServer(false);
+    inp.value='';
+    inp.placeholder='\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (gemt)';
+    var ks=document.getElementById('dbu-api-key-status');
+    if(ks) ks.textContent='\u2705 API-n\u00f8gle er gemt';
+    showStatus('\u2705 DBU API-n\u00f8gle gemt p\u00e5 server', true);
+  }catch(e){
+    console.error('dbuGemIndstillinger fejl:',e);
+    showStatus('\u274c Gem fejlede: '+e.message, false);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='\U0001f4be Gem n\u00f8gle'; }
+  }
+}
+
+async function dbuTestForbindelse(){
+  var btn    = document.getElementById('dbu-test-btn');
+  var status = document.getElementById('dbu-gem-status');
+  function showStatus(msg, ok){
+    if(status){ status.textContent=msg; status.style.color=ok?'#16A34A':'#DC2626'; }
+  }
+  if(btn){ btn.disabled=true; btn.textContent='Tester\u2026'; }
+  showStatus('', true);
+  try{
+    var res  = await fetch(DBU_URL+'?type=test', {credentials:'include', headers:authHeaders()});
+    var text = await res.text();
+    var data;
+    try{ data=JSON.parse(text); }catch(e){ throw new Error('Uventet svar fra server'); }
+    if(data.ok){
+      showStatus('\u2705 Forbindelsen til DBU virker', true);
+    }else{
+      showStatus('\u274c DBU afviste: '+(data.error||'ukendt fejl'), false);
+    }
+  }catch(e){
+    showStatus('\u274c Netv\u00e6rksfejl: '+e.message, false);
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='\U0001f50c Test'; }
+  }
 }
 
 async function dbuHentStilling(){
@@ -5101,6 +5149,14 @@ async function loadFromServer(){
     if(Array.isArray(payload.exerciseFolders)) exerciseFolders=payload.exerciseFolders;
     if(payload.boardLineups) window._boardLineups=payload.boardLineups;
     if(payload.appSettings)  window._appSettings=payload.appSettings;
+    (function(){
+      var s=payload.appSettings, el=document.getElementById('dbu-api-key-status');
+      if(el && s && s.dbuApi && s.dbuApi.apiKey){
+        el.textContent='✅ API-nøgle er gemt';
+        var inp=document.getElementById('dbu-api-key-inp');
+        if(inp) inp.placeholder='•••••••• (gemt)';
+      }
+    })();
     // Anvend klubdesign fra server (gælder alle brugere i klubben)
     if(payload.appSettings && payload.appSettings.klubDesign){
       try{
@@ -6995,6 +7051,242 @@ function archiveExercise(trid, exIdx){
   renderExArchiveList();
   toast('📥 "'+ex.name+'" gemt i arkivet');
 }
+
+
+// ── Import øvelser fra ZIP ───────────────────────────────────────────────────
+window.importExFromZip = async function importExFromZip(input) {
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  var btn = document.getElementById('exarch-import-btn');
+  if (btn) btn.textContent = '\u23f3 Importerer\u2026';
+
+  function resetBtn() {
+    if (btn) btn.innerHTML = '\ud83d\udce5 Importer fra ZIP<input type="file" accept=".zip" style="display:none;" onchange="importExFromZip(this)">';
+  }
+
+  try {
+    // 1. Åbn ZIP
+    var zip = await JSZip.loadAsync(file);
+
+    // 2. Find Excel-fil (ignorer macOS-artefakter)
+    var excelEntry = null;
+    zip.forEach(function(relPath, entry) {
+      if (entry.dir) return;
+      if (relPath.indexOf('__MACOSX') >= 0 || relPath.indexOf('.DS_Store') >= 0) return;
+      var base = relPath.split('/').pop().split('\\').pop();
+      var ext  = base.split('.').pop().toLowerCase();
+      if ((ext === 'xlsx' || ext === 'xls') && !excelEntry) {
+        excelEntry = entry;
+        console.log('importExFromZip: fandt Excel:', relPath);
+      }
+    });
+
+    if (!excelEntry) {
+      toast('\u274c ZIP-filen indeholder ingen Excel-fil (.xlsx/.xls)');
+      resetBtn(); return;
+    }
+
+    // 3. Byg billede-opslag: basename lowercase -> entry
+    var imgMap = {};
+    zip.forEach(function(relPath, entry) {
+      if (entry.dir) return;
+      if (relPath.indexOf('__MACOSX') >= 0 || relPath.indexOf('.DS_Store') >= 0) return;
+      var base = relPath.split('/').pop().split('\\').pop().toLowerCase();
+      var ext  = base.split('.').pop();
+      if (['png','jpg','jpeg','gif','webp','svg','bmp'].indexOf(ext) >= 0) {
+        imgMap[base] = entry;
+      }
+    });
+    console.log('importExFromZip: billedmap:', Object.keys(imgMap));
+
+    // 4. Parse Excel - hent rådata som arrays
+    var excelBuf = await excelEntry.async('arraybuffer');
+    var wb = XLSX.read(excelBuf, { type: 'array' });
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    // 5. Find header-rækken: første række hvor en celle matcher kendte kolonnenavne
+    //    Understøtter "Navn *" (med asterisk/mellemrum i slutningen)
+    var KNOWN = ['navn','name','ovelse','exercise','titel','title',
+                 'beskrivelse','description','desc','note','minutter','min',
+                 'billede','image','img','foto','fil','filename','file','billedfil',
+                 'mappe','folder'];
+
+    function normalizeHeader(h) {
+      return String(h||'').trim().toLowerCase()
+        .replace(/[*\u00ae\u2019\u2018 ]+$/, '').trim()   // fjern afsluttende * og lignende
+        .replace(/[*\u00e6\u00f8\u00e5]/g, function(c) {  // normaliser danske tegn til ASCII for matching
+          return c === '\u00e6' ? 'ae' : c === '\u00f8' ? 'o' : c === '\u00e5' ? 'a' : c;
+        });
+    }
+
+    function isHeaderRow(row) {
+      return row.some(function(cell) {
+        return KNOWN.indexOf(normalizeHeader(cell)) >= 0;
+      });
+    }
+
+    var headerRowIdx = -1;
+    for (var hi = 0; hi < Math.min(rawRows.length, 10); hi++) {
+      if (isHeaderRow(rawRows[hi])) { headerRowIdx = hi; break; }
+    }
+    console.log('importExFromZip: header på række', headerRowIdx, rawRows[headerRowIdx]);
+
+    if (headerRowIdx < 0) {
+      toast('\u274c Excel mangler kolonnenavne (Navn, Beskrivelse osv.)');
+      resetBtn(); return;
+    }
+
+    // 6. Byg header-map: normaliseret -> kolonneindeks
+    var headers = rawRows[headerRowIdx].map(normalizeHeader);
+    console.log('importExFromZip: normaliserede headers:', headers);
+
+    function colIdx(candidates) {
+      for (var ci = 0; ci < headers.length; ci++) {
+        if (candidates.indexOf(headers[ci]) >= 0) return ci;
+      }
+      return -1;
+    }
+
+    var nameIdx  = colIdx(['navn','name','ovelse','exercise','titel','title']);
+    var descIdx  = colIdx(['beskrivelse','description','desc','note','tekst','text']);
+    var minIdx   = colIdx(['minutter','tid','min','duration','minutes','varighed']);
+    var imgIdx   = colIdx(['billede','image','img','foto','fil','filename','file','billedfil']);
+    var mappeIdx = colIdx(['mappe','folder','folderid','kategori','category']);
+    var idIdx    = colIdx(['id']);
+
+    console.log('importExFromZip: kolonner', {nameIdx,descIdx,minIdx,imgIdx,mappeIdx,idIdx});
+
+    if (nameIdx < 0) {
+      toast('\u274c Excel mangler en Navn-kolonne');
+      resetBtn(); return;
+    }
+
+    // 7. Datarækkerne starter EFTER header-rækken
+    var dataRows = rawRows.slice(headerRowIdx + 1);
+
+    var created = 0, updated = 0, skipped = 0;
+    var missingImgs = [];
+    var user = localStorage.getItem('fcs-user') || 'import';
+    var now  = new Date().toISOString();
+
+    for (var ri = 0; ri < dataRows.length; ri++) {
+      var row  = dataRows[ri];
+      var name = String(row[nameIdx] != null ? row[nameIdx] : '').trim();
+
+      // Spring over tomme rækker
+      if (!name) { skipped++; continue; }
+
+      // Spring over vejledningsrækker (f.eks. "Påkrævet", "F.eks. 15")
+      if (/^(p\u00e5kr\u00e6vet|f\.eks\.|eksempel|vejledning|required|example)/i.test(name)) {
+        console.log('importExFromZip: springer vejledningsrække over:', name);
+        continue;
+      }
+
+      var desc      = descIdx  >= 0 ? String(row[descIdx]  != null ? row[descIdx]  : '').trim() : '';
+      var minVal    = minIdx   >= 0 ? parseInt(row[minIdx])  || 0 : 0;
+      var imgFile   = imgIdx   >= 0 ? String(row[imgIdx]   != null ? row[imgIdx]   : '').trim() : '';
+      var mappeNavn = mappeIdx >= 0 ? String(row[mappeIdx] != null ? row[mappeIdx] : '').trim() : '';
+      var rowId     = idIdx    >= 0 ? String(row[idIdx]    != null ? row[idIdx]    : '').trim() : '';
+
+      // Billede: slå op i billedmap (case-insensitiv, ignorer sti-præfix)
+      var imgData = null;
+      if (imgFile) {
+        var imgBaseLower = imgFile.split('/').pop().split('\\').pop().toLowerCase().trim();
+        var imgEntry = imgMap[imgBaseLower];
+        if (imgEntry) {
+          var imgBuf = await imgEntry.async('uint8array');
+          var ext2   = imgBaseLower.split('.').pop();
+          var mime   = ext2 === 'svg'  ? 'image/svg+xml'
+                     : ext2 === 'gif'  ? 'image/gif'
+                     : ext2 === 'webp' ? 'image/webp'
+                     : ext2 === 'png'  ? 'image/png'
+                     : 'image/jpeg';
+          var b64 = '', chunk = 8192;
+          for (var ci = 0; ci < imgBuf.length; ci += chunk) {
+            b64 += String.fromCharCode.apply(null, imgBuf.subarray(ci, ci + chunk));
+          }
+          imgData = 'data:' + mime + ';base64,' + btoa(b64);
+        } else {
+          missingImgs.push(imgFile + ' (til "' + name + '")');
+          console.warn('importExFromZip: billede ikke fundet:', imgFile,
+                       'tilgængelige:', Object.keys(imgMap));
+        }
+      }
+
+      // Mappe: find eksisterende mappe, eller importer uden mappe
+      var folderId = null;
+      if (mappeNavn) {
+        var folder = exerciseFolders.find(function(f) {
+          return f.name && f.name.toLowerCase() === mappeNavn.toLowerCase();
+        });
+        if (folder) folderId = folder.id;
+      }
+
+      // Dublettjek: ID-match -> navn-match
+      var exists = null;
+      if (rowId) {
+        exists = exerciseArchive.find(function(a) { return a.id === rowId; });
+      }
+      if (!exists) {
+        exists = exerciseArchive.find(function(a) {
+          return a.name.toLowerCase() === name.toLowerCase();
+        });
+      }
+
+      if (exists) {
+        exists.name = name;
+        exists.desc = desc;
+        exists.min  = minVal;
+        if (folderId) exists.folderId = folderId;
+        if (imgData !== null) exists.img = imgData;
+        exists.updatedAt = now;
+        updated++;
+      } else {
+        exerciseArchive.push({
+          id:       rowId || uid(),
+          name:     name,
+          desc:     desc,
+          min:      minVal,
+          img:      imgData,
+          folderId: folderId,
+          savedAt:  now,
+          savedBy:  user
+        });
+        created++;
+      }
+    }
+
+    exerciseArchive.sort(function(a, b) {
+      return a.name.localeCompare(b.name, 'da');
+    });
+    saveExerciseArchive();
+    renderExArchiveList();
+
+    // Resultat-toasts
+    var parts = [];
+    if (created) parts.push(created + ' oprettet');
+    if (updated) parts.push(updated + ' opdateret');
+    if (skipped) parts.push(skipped + ' sprunget over');
+    toast('\u2705 Import: ' + (parts.join(' \u00b7 ') || 'ingen \u00e6ndringer'));
+
+    if (missingImgs.length) {
+      setTimeout(function() {
+        toast('\u26a0\ufe0f ' + missingImgs.length + ' billede(r) ikke fundet i ZIP: ' +
+          missingImgs.slice(0, 3).join(', ') + (missingImgs.length > 3 ? '\u2026' : ''));
+      }, 2500);
+    }
+
+  } catch (err) {
+    console.error('importExFromZip fejl:', err);
+    toast('\u274c Import fejlede: ' + err.message);
+  } finally {
+    resetBtn();
+  }
+};
+
 
 function importAllExFromTrainings(){
   if(!trainings.length){ toast('⚠️ Ingen træninger at importere fra'); return; }
